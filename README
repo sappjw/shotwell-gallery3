@@ -1,0 +1,2 @@
+Also edit /usr/share/glib-2.0/schemas/org.yorba.shotwell.gschema.xml and
+run `glib-compile-schemas /usr/share/glib-2.0/schemas`.
