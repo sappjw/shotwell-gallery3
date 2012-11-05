@@ -128,8 +128,15 @@ private class Album {
 
 private class BaseGalleryTransaction : Publishing.RESTSupport.Transaction {
 
-    public BaseGalleryTransaction(Session session, string endpoint_url) {
-        base.with_endpoint_url(session, endpoint_url, Publishing.RESTSupport.HttpMethod.POST);
+    protected Json.Parser parser;
+
+    // BaseGalleryTransaction constructor
+    public BaseGalleryTransaction(Session session, string endpoint_url,
+            Publishing.RESTSupport.HttpMethod method =
+            Publishing.RESTSupport.HttpMethod.POST) {
+        base.with_endpoint_url(session, endpoint_url, method);
+
+        this.parser = new Json.Parser();
     }
 
 }
