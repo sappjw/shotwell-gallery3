@@ -566,7 +566,8 @@ internal class CredentialsGrid : Gtk.Grid {
     public void installed() {
         host.set_service_locked(false);
 
-        username_entry.grab_focus();
+        url_entry.grab_focus();
+        username_entry.set_activates_default(true);
         password_entry.set_activates_default(true);
         login_button.can_default = true;
         host.set_dialog_default_widget(login_button);
