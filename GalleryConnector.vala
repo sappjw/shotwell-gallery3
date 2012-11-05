@@ -364,11 +364,11 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
             return;
 
         //key = txn.get_response();
-        key = ((KeyFetchTransaction)txn).get_key();
-        // key = (txn as KeyFetchTransaction).get_key();
-        // if (key == null) debug("Oh noes!");
-        debug("EVENT: network transaction to fetch key completed " +
-            "successfully (%s).", key);
+        key = (txn as KeyFetchTransaction).get_key();
+        if (key == null) debug("Oh noes!");
+        else
+            debug("EVENT: network transaction to fetch key completed " +
+                  "successfully (%s).", key);
     }
 
 }
