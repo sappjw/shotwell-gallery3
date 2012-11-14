@@ -163,15 +163,23 @@ private class KeyFetchTransaction : BaseGalleryTransaction {
     public KeyFetchTransaction(Session session, string url, string username, string password) {
         // TODO: check if URL is properly formed...?
         if (url[0:4] == "http") {
-            base(session, url + "/index.php/rest");
+            base(session, url);
             add_argument("user", username);
             add_argument("password", password);
+        }
+        else {
+            debug("ERROR: bad URL");
         }
     }
 
     public string get_key() throws Spit.Publishing.PublishingError {
 
-        string json_object = get_response();
+        string json_object;
+
+        if (key != "")
+            return key;
+
+        json_object = get_response();
 
         if (json_object == null || json_object.length == 0)
             throw new Spit.Publishing.PublishingError.MALFORMED_RESPONSE(
@@ -201,6 +209,11 @@ private class KeyFetchTransaction : BaseGalleryTransaction {
         return this.key;
     }
 
+    public void forget_key() {
+        key = "";
+    }
+
+}
 }
 
 
