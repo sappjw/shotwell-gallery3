@@ -320,7 +320,9 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
         debug("ACTION: showing credentials capture pane in %s mode.",
           mode.to_string());
 
-        CredentialsPane creds_pane = new CredentialsPane(host, mode);
+        CredentialsPane creds_pane =
+            new CredentialsPane(host, mode, get_gallery_url(),
+                get_gallery_username());
         creds_pane.go_back.connect(on_credentials_go_back);
         creds_pane.login.connect(on_credentials_login);
 
@@ -465,9 +467,10 @@ internal class CredentialsPane : Spit.Publishing.DialogPane, GLib.Object {
     public signal void go_back();
     public signal void login(string url, string uname, string password);
 
-    public CredentialsPane(Spit.Publishing.PluginHost host, Mode mode = Mode.INTRO,
+    public CredentialsPane(Spit.Publishing.PluginHost host,
+            Mode mode = Mode.INTRO,
             string? url = null, string? username = null) {
-        frame = new CredentialsGrid(host, mode, username);
+        frame = new CredentialsGrid(host, mode, url, username);
     }
 
     protected void notify_go_back() {
@@ -666,21 +669,19 @@ internal class CredentialsGrid : Gtk.Grid {
 }
 
 internal class Session : Publishing.RESTSupport.Session {
-    private string? password = null;
-    private string? username = null;
     private string? url = null;
+    private string? username = null;
     private string? key = null;
 
     public Session() {
     }
 
     public override bool is_authenticated() {
-        return ((key != null) || (password != null));
+        return (key != null);
     }
 
-    public void authenticate(string gallery_url, string username, string password, string key) {
+    public void authenticate(string gallery_url, string username, string key) {
         this.url = gallery_url;
-        this.password = password;
         this.username = username;
         this.key = key;
 
