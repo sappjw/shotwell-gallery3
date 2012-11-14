@@ -273,6 +273,41 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
         running = false;
     }
 
+    // Config getters/setters
+    // API key
+    internal string? get_api_key() {
+        return host.get_config_string("api-key", null);
+    }
+
+    internal void set_api_key(string key) {
+        host.set_config_string("api-key", key);
+    }
+
+    // URL
+    internal string? get_gallery_url() {
+        return host.get_config_string("url", null);
+    }
+
+    internal void set_gallery_url(string url) {
+        host.set_config_string("url", url);
+    }
+
+    // Username
+    internal string? get_gallery_username() {
+        return host.get_config_string("username", null);
+    }
+
+    internal void set_gallery_username(string username) {
+        host.set_config_string("username", username);
+    }
+
+    internal bool? get_persistent_strip_metadata() {
+        return false;
+    }
+
+    internal void set_persistent_strip_metadata(bool strip_metadata) {
+    }
+
     // Pane installation functions
     private void do_show_service_welcome_pane() {
         debug("ACTION: showing service welcome pane.");
@@ -330,6 +365,8 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
         debug("EVENT: user '%s' clicked 'Login' in credentials pane.",
           username);
 
+        set_gallery_url(url);
+        set_gallery_username(username);
         do_network_login(url, username, password);
     }
 
@@ -382,12 +419,20 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
         if (session.is_authenticated())
             return;
 
-        //key = txn.get_response();
         key = (txn as KeyFetchTransaction).get_key();
         if (key == null) debug("Oh noes!");
-        else
+        else {
+            string url = get_gallery_url();
+            string username = get_gallery_username();
+
             debug("EVENT: network transaction to fetch key completed " +
                   "successfully (%s).", key);
+
+            set_api_key(key);
+            session.authenticate(url, username, key);
+            do_show_publishing_options_pane(url, username);
+        }
+    }
     }
 
 }
