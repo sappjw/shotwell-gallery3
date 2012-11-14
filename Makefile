@@ -16,6 +16,7 @@ install: $(PROGRAM).so
 	mkdir -p ~/.gnome2/shotwell/plugins
 	install -m 644 $(PROGRAM).so ~/.gnome2/shotwell/plugins
 	install -m 444 $(ICON) ~/.gnome2/shotwell/plugins
+	install -m 444 *.glade ~/.gnome2/shotwell/plugins
 
 uninstall:
 	@ [ `whoami` != "root" ] || ( echo 'Run make install as yourself, not as root.' ; exit 1 )

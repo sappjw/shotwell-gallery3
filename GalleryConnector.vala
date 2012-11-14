@@ -349,6 +349,33 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
         }
     }
 
+    private void do_show_publishing_options_pane(string url,
+            string username) {
+        debug("ACTION: showing publishing options pane");
+
+        Gtk.Builder builder = new Gtk.Builder();
+
+        try {
+            builder.add_from_file(
+                host.get_module_file().get_parent().get_child(
+                    "gallery3_publishing_options_pane.glade").get_path());
+        }
+        catch (Error e) {
+            warning("Could not parse UI file! Error: %s.", e.message);
+            host.post_error(
+                new Spit.Publishing.PublishingError.LOCAL_FILE_ERROR(
+                    _("A file required for publishing is unavailable. Publishing to Gallery3 can't continue.")));
+            return;
+        }
+
+        PublishingOptionsPane pane =
+            new PublishingOptionsPane(host, url, username, albums,
+                builder, get_persistent_strip_metadata());
+        pane.publish.connect(on_publishing_options_pane_publish);
+        pane.logout.connect(on_publishing_options_pane_logout);
+        host.install_dialog_pane(pane);
+    }
+
     // Callbacks
     private void on_service_welcome_login() {
         if (!is_running())
@@ -435,8 +462,231 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
             do_show_publishing_options_pane(url, username);
         }
     }
+
+    private void on_publishing_options_pane_logout() {
+        if (!is_running())
+            return;
+
+        debug("EVENT: user is attempting to log out.");
+
+        session.deauthenticate();
+        do_show_service_welcome_pane();
     }
 
+    private void on_publishing_options_pane_publish(PublishingParameters parameters, bool strip_metadata) {
+        if (!is_running())
+            return;
+
+        debug("EVENT: user is attempting to publish something.");
+    }
+
+}
+
+internal class PublishingOptionsPane : Spit.Publishing.DialogPane, GLib.Object {
+    private const string DEFAULT_ALBUM_NAME = "";
+    private const string LAST_ALBUM_CONFIG_KEY = "last-album";
+
+    private Gtk.Builder builder = null;
+
+    private Gtk.Grid pane_widget = null;
+    private Gtk.Label title_label = null;
+    private Gtk.RadioButton use_existing_radio = null;
+    private Gtk.ComboBoxText existing_albums_combo = null;
+    private Gtk.RadioButton create_new_radio = null;
+    private Gtk.Entry new_album_entry = null;
+    private Gtk.CheckButton strip_metadata_check = null;
+    private Gtk.Button publish_button = null;
+    private Gtk.Button logout_button = null;
+
+    private Album[] albums;
+    private string username;
+    private weak Spit.Publishing.PluginHost host;
+
+    public signal void publish(PublishingParameters parameters,
+        bool strip_metadata);
+    public signal void logout();
+
+    public PublishingOptionsPane(Spit.Publishing.PluginHost host,
+            string url, string username, Album[] albums,
+            Gtk.Builder builder, bool strip_metadata) {
+        this.username = username;
+        this.albums = albums;
+        this.host = host;
+
+        this.builder = builder;
+        assert(builder != null);
+        assert(builder.get_objects().length() > 0);
+
+        // pull in all widgets from builder
+        pane_widget = builder.get_object("pane_widget") as Gtk.Grid;
+        title_label = builder.get_object("title_label") as Gtk.Label;
+        use_existing_radio = builder.get_object("publish_to_existing_radio") as Gtk.RadioButton;
+        existing_albums_combo = builder.get_object("existing_albums_combo") as Gtk.ComboBoxText;
+        create_new_radio = builder.get_object("publish_new_radio") as Gtk.RadioButton;
+        new_album_entry = builder.get_object("new_album_name") as Gtk.Entry;
+        strip_metadata_check = this.builder.get_object("strip_metadata_check") as Gtk.CheckButton;
+        publish_button = builder.get_object("publish_button") as Gtk.Button;
+        logout_button = builder.get_object("logout_button") as Gtk.Button;
+
+        // populate any widgets whose contents are
+        // programmatically-generated
+        title_label.set_label(
+            _("Publishing to %s as %s.").printf(url, username));
+        strip_metadata_check.set_active(strip_metadata);
+
+
+        // connect all signals.
+        use_existing_radio.clicked.connect(on_use_existing_radio_clicked);
+        create_new_radio.clicked.connect(on_create_new_radio_clicked);
+        new_album_entry.changed.connect(on_new_album_entry_changed);
+        logout_button.clicked.connect(on_logout_clicked);
+        publish_button.clicked.connect(on_publish_clicked);
+    }
+
+    private void on_publish_clicked() {
+        string album_name;
+        if (create_new_radio.get_active()) {
+            album_name = new_album_entry.get_text();
+            host.set_config_string(LAST_ALBUM_CONFIG_KEY, album_name);
+            publish(new PublishingParameters.to_new_album(album_name),
+                strip_metadata_check.get_active());
+        } else {
+            album_name = albums[existing_albums_combo.get_active()].name;
+            host.set_config_string(LAST_ALBUM_CONFIG_KEY, album_name);
+            string album_url = albums[existing_albums_combo.get_active()].url;
+            publish(new PublishingParameters.to_existing_album(album_url),
+                strip_metadata_check.get_active());
+        }
+    }
+
+    private void on_use_existing_radio_clicked() {
+        existing_albums_combo.set_sensitive(true);
+        new_album_entry.set_sensitive(false);
+        existing_albums_combo.grab_focus();
+        update_publish_button_sensitivity();
+    }
+
+    private void on_create_new_radio_clicked() {
+        new_album_entry.set_sensitive(true);
+        existing_albums_combo.set_sensitive(false);
+        new_album_entry.grab_focus();
+        update_publish_button_sensitivity();
+    }
+
+    private void on_logout_clicked() {
+        logout();
+    }
+
+    private void update_publish_button_sensitivity() {
+        string album_name = new_album_entry.get_text();
+        publish_button.set_sensitive(!(album_name.strip() == "" &&
+            create_new_radio.get_active()));
+    }
+
+    private void on_new_album_entry_changed() {
+        update_publish_button_sensitivity();
+    }
+
+    public void installed() {
+        int default_album_id = -1;
+        string last_album = host.get_config_string(LAST_ALBUM_CONFIG_KEY, "");
+        for (int i = 0; i < albums.length; i++) {
+            existing_albums_combo.append_text(albums[i].name);
+            if (albums[i].name == last_album ||
+                (albums[i].name == DEFAULT_ALBUM_NAME && default_album_id == -1))
+                default_album_id = i;
+        }
+
+        if (albums.length == 0) {
+            existing_albums_combo.set_sensitive(false);
+            use_existing_radio.set_sensitive(false);
+            create_new_radio.set_active(true);
+            new_album_entry.grab_focus();
+            new_album_entry.set_text(DEFAULT_ALBUM_NAME);
+        } else {
+            if (default_album_id >= 0) {
+                use_existing_radio.set_active(true);
+                existing_albums_combo.set_active(default_album_id);
+                new_album_entry.set_sensitive(false);
+            } else {
+                create_new_radio.set_active(true);
+                existing_albums_combo.set_active(0);
+                new_album_entry.set_text(DEFAULT_ALBUM_NAME);
+                new_album_entry.grab_focus();
+            }
+        }
+        update_publish_button_sensitivity();
+    }
+
+    protected void notify_publish(PublishingParameters parameters) {
+        publish(parameters, strip_metadata_check.get_active());
+    }
+
+    protected void notify_logout() {
+        logout();
+    }
+
+    public Gtk.Widget get_widget() {
+        return pane_widget;
+    }
+
+    public Spit.Publishing.DialogPane.GeometryOptions get_preferred_geometry() {
+        return Spit.Publishing.DialogPane.GeometryOptions.NONE;
+    }
+
+    public void on_pane_installed() {
+        installed();
+
+        publish.connect(notify_publish);
+        logout.connect(notify_logout);
+    }
+
+    public void on_pane_uninstalled() {
+        publish.disconnect(notify_publish);
+        logout.disconnect(notify_logout);
+    }
+}
+
+internal class PublishingParameters {
+    private string album_name;
+    private string album_url;
+    private bool album_public;
+
+    private PublishingParameters() {
+    }
+
+    public PublishingParameters.to_new_album(string album_name) {
+        this.album_name = album_name;
+    }
+
+    public PublishingParameters.to_existing_album(string album_url) {
+        this.album_url = album_url;
+    }
+
+    public bool is_to_new_album() {
+        return (album_name != null);
+    }
+
+    public string get_album_name() {
+        assert(is_to_new_album());
+        return album_name;
+    }
+
+    public string get_album_entry_url() {
+        assert(!is_to_new_album());
+        return album_url;
+    }
+
+    // converts a publish-to-new-album parameters object into a publish-to-existing-album
+    // parameters object
+    public void convert(string album_url) {
+        assert(is_to_new_album());
+
+        // debug("converting publishing parameters: album '%s' has url '%s'.", album_name, album_url);
+
+        album_name = null;
+        this.album_url = album_url;
+    }
 }
 
 internal class CredentialsPane : Spit.Publishing.DialogPane, GLib.Object {
