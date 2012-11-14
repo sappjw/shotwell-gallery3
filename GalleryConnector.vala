@@ -690,7 +690,6 @@ internal class Session : Publishing.RESTSupport.Session {
 
     public void deauthenticate() {
         url = null;
-        password = null;
         username = null;
         key = null;
     }
@@ -699,11 +698,7 @@ internal class Session : Publishing.RESTSupport.Session {
         return username;
     }
 
-    public string get_password() {
-        return password;
-    }
-
-    public string get_gallery_url() {
+    public string get_url() {
         return url;
     }
 
