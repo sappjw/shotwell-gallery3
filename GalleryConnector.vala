@@ -132,24 +132,30 @@ private class BaseGalleryTransaction : Publishing.RESTSupport.Transaction {
 
     // BaseGalleryTransaction constructor
     public BaseGalleryTransaction(Session session, string endpoint_url,
+            string item_path = "",
             Publishing.RESTSupport.HttpMethod method =
             Publishing.RESTSupport.HttpMethod.POST) {
-        base.with_endpoint_url(session, endpoint_url, method);
+
+        string prefix = "";
+
+        if ((item_path != "") && (item_path[0] != '/')) {
+            warning("Bad item path, this is a bug!");
+            prefix = "/";
+        }
+
+        base.with_endpoint_url(session,
+            endpoint_url + "/index.php/rest" + prefix + item_path,
+            method);
 
         this.parser = new Json.Parser();
+
     }
 
-}
-
-private class AuthenticatedTransaction : BaseGalleryTransaction {
-    public AuthenticatedTransaction(Session session, string endpoint_url) {
-        base(session, endpoint_url);
-    }
 }
 
 private class KeyFetchTransaction : BaseGalleryTransaction {
 
-    private string key;
+    private string key = "";
 
     // KeyFetchTransaction constructor
     //
