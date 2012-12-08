@@ -264,7 +264,29 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
 
         running = true;
 
-        do_show_service_welcome_pane();
+        key = get_api_key();
+
+        if ((null == key) || ("" == key))
+            do_show_service_welcome_pane();
+        else {
+            string url = get_gallery_url();
+            string username = get_gallery_username();
+
+            if ((null == username) || (null == url))
+                do_show_service_welcome_pane();
+            else {
+                debug("ACTION: attempting network login for user " +
+                    "'%s' at URL '%s' from saved credentials.",
+                    username, url);
+
+                host.install_login_wait_pane();
+
+                session.authenticate(url, username, key);
+
+                // Initiate an album transaction
+                do_fetch_albums();
+            }
+        }
     }
 
     public void stop() {
