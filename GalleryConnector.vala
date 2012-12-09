@@ -795,7 +795,8 @@ internal class PublishingOptionsPane : Spit.Publishing.DialogPane, GLib.Object {
             publish(new PublishingParameters.to_new_album(album_name),
                 strip_metadata_check.get_active());
         } else {
-            album_name = albums[existing_albums_combo.get_active()].name;
+            album_name =
+                albums[existing_albums_combo.get_active()].title;
             host.set_config_string(LAST_ALBUM_CONFIG_KEY, album_name);
             string album_url = albums[existing_albums_combo.get_active()].url;
             publish(new PublishingParameters.to_existing_album(album_url),
@@ -835,9 +836,10 @@ internal class PublishingOptionsPane : Spit.Publishing.DialogPane, GLib.Object {
         int default_album_id = -1;
         string last_album = host.get_config_string(LAST_ALBUM_CONFIG_KEY, "");
         for (int i = 0; i < albums.length; i++) {
-            existing_albums_combo.append_text(albums[i].name);
-            if (albums[i].name == last_album ||
-                (albums[i].name == DEFAULT_ALBUM_NAME && default_album_id == -1))
+            existing_albums_combo.append_text(albums[i].title);
+            if ((albums[i].title == last_album) ||
+                ((DEFAULT_ALBUM_NAME == albums[i].title) &&
+                    (-1 == default_album_id)))
                 default_album_id = i;
         }
 
