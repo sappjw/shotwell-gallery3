@@ -228,6 +228,127 @@ private class KeyFetchTransaction : BaseGalleryTransaction {
     }
 
 }
+
+private class GalleryRequestTransaction : BaseGalleryTransaction {
+
+    // GalleryRequestTransaction constructor
+    //
+    // url: Item URL
+    public GalleryRequestTransaction(Session session, string item) {
+
+        if (!session.is_authenticated()) {
+            error("Not authenticated");
+        }
+        else {
+            base(session, session.get_url(), item);
+            add_header("X-Gallery-Request-Key", session.get_key());
+            add_header("X-Gallery-Request-Method", "GET");
+        }
+
+    }
+
+    protected unowned Json.Node get_root_node()
+            throws Spit.Publishing.PublishingError {
+
+        string json_object;
+        unowned Json.Node root_node;
+
+        json_object = get_response();
+
+        if ((null == json_object) || (0 == json_object.length))
+            throw new Spit.Publishing.PublishingError.MALFORMED_RESPONSE(
+                "No response data from %s", get_endpoint_url());
+
+        debug("json_object: %s", json_object);
+
+        try {
+            this.parser.load_from_data(json_object);
+        }
+        catch (GLib.Error e) {
+            // If this didn't work, reset the "executed" state
+            debug("ERROR: didn't load JSON data");
+            set_is_executed(false);
+            throw new Spit.Publishing.PublishingError.PROTOCOL_ERROR(e.message);
+        }
+
+        root_node = this.parser.get_root();
+        if (root_node.is_null())
+            throw new Spit.Publishing.PublishingError.MALFORMED_RESPONSE(
+                "Root node is null, doesn't appear to be JSON data");
+
+        return root_node;
+
+    }
+
+}
+
+private class GetAlbumURLsTransaction : GalleryRequestTransaction {
+
+    //TODO: handle > 100 items
+    public GetAlbumURLsTransaction(Session session) {
+
+        base(session, "/item/1");
+        add_argument("type", "album");
+        add_argument("scope", "all");
+
+    }
+
+    public string [] get_album_urls() {
+
+        unowned Json.Node root_node = get_root_node();
+        unowned Json.Array all_members =
+            root_node.get_object().get_array_member("members");
+
+        string [] member_urls = null;
+
+        for (int i = 0; i <= all_members.get_length() - 1; i++)
+            member_urls += all_members.get_string_element(i);
+
+        return member_urls;
+
+    }
+
+}
+
+private class GetAlbumsTransaction : GalleryRequestTransaction {
+
+    //TODO: handle > 100 items
+    public GetAlbumsTransaction(Session session, string [] album_urls) {
+
+        string url_list = "";
+
+        base(session, "/items");
+        add_argument("scope", "all");
+
+        // Wrap each URL in double quotes and separate by a comma
+        for (uint i = 0; i <= album_urls.length - 1; i++)
+            album_urls[i] = "\"" + album_urls[i] + "\"";
+        url_list = "[" + string.joinv(",", album_urls) + "]";
+
+        add_argument("urls", url_list);
+
+    }
+
+    public Album [] get_albums() throws Spit.Publishing.PublishingError {
+
+        Album [] albums = null;
+        Album tmp_album;
+        unowned Json.Node root_node = get_root_node();
+        unowned Json.Array members = root_node.get_array();
+
+        // Only add editable items
+        for (uint i = 0; i <= members.get_length() - 1; i++) {
+            tmp_album = new Album(members.get_object_element(i));
+
+            if (tmp_album.editable)
+                albums += tmp_album;
+            else
+                debug("Album \"$(tmp_album.title)\" is not editable");
+        }
+
+        return albums;
+    }
+
 }
 
 
@@ -298,7 +419,7 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
                 session.authenticate(url, username, key);
 
                 // Initiate an album transaction
-                do_fetch_albums();
+                do_fetch_album_urls();
             }
         }
     }
@@ -383,6 +504,40 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
             // our host immediately; instead, try to recover from it
             on_key_fetch_error(fetch_trans, err);
         }
+    }
+
+    private void do_fetch_album_urls() {
+
+        GetAlbumURLsTransaction album_trans =
+            new GetAlbumURLsTransaction(session);
+        album_trans.network_error.connect(on_album_fetch_error);
+        album_trans.completed.connect(on_album_urls_fetch_complete);
+
+        try {
+            album_trans.execute();
+        } catch (Spit.Publishing.PublishingError err) {
+            // 403 errors are recoverable, so don't post the error to
+            // our host immediately; instead, try to recover from it
+            on_album_fetch_error(album_trans, err);
+        }
+
+    }
+
+    private void do_fetch_albums(string [] album_urls) {
+
+        GetAlbumsTransaction album_trans =
+            new GetAlbumsTransaction(session, album_urls);
+        album_trans.network_error.connect(on_album_fetch_error);
+        album_trans.completed.connect(on_album_fetch_complete);
+
+        try {
+            album_trans.execute();
+        } catch (Spit.Publishing.PublishingError err) {
+            // 403 errors are recoverable, so don't post the error to
+            // our host immediately; instead, try to recover from it
+            on_album_fetch_error(album_trans, err);
+        }
+
     }
 
     private void do_show_publishing_options_pane(string url,
@@ -495,8 +650,61 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
 
             set_api_key(key);
             session.authenticate(url, username, key);
-            do_show_publishing_options_pane(url, username);
+
+            // Initiate an album transaction
+            do_fetch_album_urls();
         }
+    }
+
+    private void on_album_fetch_error(Publishing.RESTSupport.Transaction bad_txn,
+            Spit.Publishing.PublishingError err) {
+        // TODO: expand this
+        on_key_fetch_error(bad_txn, err);
+    }
+
+    private void
+    on_album_urls_fetch_complete(Publishing.RESTSupport.Transaction txn) {
+        txn.completed.disconnect(on_album_urls_fetch_complete);
+        txn.network_error.disconnect(on_album_fetch_error);
+
+        if (!is_running())
+            return;
+
+        // ignore these events if the session is not auth'd
+        if (!session.is_authenticated())
+            return;
+
+        debug("EVENT: user has retrieved all album URLs.");
+
+        string [] album_urls =
+            (txn as GetAlbumURLsTransaction).get_album_urls();
+
+        for (int i = 0; i <= album_urls.length - 1; i++)
+            debug("%s\n", album_urls[i]);
+
+        do_fetch_albums(album_urls);
+    }
+
+    private void
+    on_album_fetch_complete(Publishing.RESTSupport.Transaction txn) {
+        txn.completed.disconnect(on_album_fetch_complete);
+        txn.network_error.disconnect(on_album_fetch_error);
+
+        if (!is_running())
+            return;
+
+        // ignore these events if the session is not auth'd
+        if (!session.is_authenticated())
+            return;
+
+        debug("EVENT: user is attempting to populate the album list.");
+
+        albums = (txn as GetAlbumsTransaction).get_albums();
+
+        string url = session.get_url();
+        string username = session.get_username();
+
+        do_show_publishing_options_pane(url, username);
     }
 
     private void on_publishing_options_pane_logout() {
