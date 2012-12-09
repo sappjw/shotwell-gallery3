@@ -113,17 +113,31 @@ private struct AlbumInfo {
 }
 
 private class Album {
-    /* info from GalleryWeb */
-    public string title;
-    public string name;
-    public string summary;
-    public string  parentname;
-    public AlbumPerms perms;
-    public AlbumInfo  info ;
 
 
-    public Album() {
     }
+    // Properties
+    public string name { get; private set; default = ""; }
+    public string title { get; private set; default = ""; }
+    public string summary { get; private set; default = ""; }
+    public string parentname { get; private set; default = ""; }
+    public string url { get; private set; default = ""; }
+    public bool editable { get; private set; default = false; }
+
+    // Each element is a collection
+    public Album(Json.Object collection) {
+
+        //unowned Json.Object collection = element.get_object();
+        unowned Json.Object entity =
+            collection.get_object_member("entity");
+
+        title = entity.get_string_member("title");
+        name = entity.get_string_member("name");
+        url = entity.get_string_member("web_url");
+        editable = entity.get_boolean_member("can_edit");
+
+    }
+
 }
 
 private class BaseGalleryTransaction : Publishing.RESTSupport.Transaction {
