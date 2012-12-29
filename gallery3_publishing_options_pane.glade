@@ -99,7 +99,6 @@
           <object class="GtkEntry" id="new_album_name">
             <property name="visible">True</property>
             <property name="can_focus">True</property>
-            <property name="editable">False</property>
             <property name="invisible_char">●</property>
           </object>
           <packing>
