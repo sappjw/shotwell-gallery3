@@ -207,7 +207,8 @@ private class KeyFetchTransaction : BaseGalleryTransaction {
     // KeyFetchTransaction constructor
     //
     // url: Base gallery URL
-    public KeyFetchTransaction(Session session, string url, string username, string password) {
+    public KeyFetchTransaction(Session session, string url,
+            string username, string password) {
         // TODO: check if URL is properly formed...?
         if (url[0:4] == "http") {
             base(session, url);
@@ -246,12 +247,12 @@ private class KeyFetchTransaction : BaseGalleryTransaction {
             throw new Spit.Publishing.PublishingError.PROTOCOL_ERROR(e.message);
         }
 
-        unowned Json.Node root_node = parser.get_root();
+        unowned Json.Node root_node = this.parser.get_root();
         if (root_node.is_null())
             throw new Spit.Publishing.PublishingError.MALFORMED_RESPONSE(
                 "Root node is null, doesn't appear to be JSON data");
-        else
-            this.key = root_node.get_object().get_string_member("key");
+
+        this.key = root_node.get_object().get_string_member("key");
 
         return this.key;
     }
@@ -266,7 +267,7 @@ private class GalleryRequestTransaction : BaseGalleryTransaction {
 
     // GalleryRequestTransaction constructor
     //
-    // url: Item URL
+    // item: Item URL component
     public GalleryRequestTransaction(Session session, string item) {
 
         if (!session.is_authenticated()) {
@@ -352,7 +353,7 @@ private class GetAlbumsTransaction : GalleryRequestTransaction {
             if (tmp_album.editable)
                 albums += tmp_album;
             else
-                debug("Album \"$(tmp_album.title)\" is not editable");
+                debug(@"Album \"$(tmp_album.title)\" is not editable");
         }
 
         return albums;
