@@ -273,8 +273,8 @@ private class GalleryRequestTransaction : BaseGalleryTransaction {
             error("Not authenticated");
         }
         else {
-            base(session, session.get_url(), item);
-            add_header("X-Gallery-Request-Key", session.get_key());
+            base(session, session.url, item);
+            add_header("X-Gallery-Request-Key", session.key);
             add_header("X-Gallery-Request-Method", "GET");
         }
 
@@ -710,8 +710,8 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
 
         albums = (txn as GetAlbumsTransaction).get_albums();
 
-        string url = session.get_url();
-        string username = session.get_username();
+        string url = session.url;
+        string username = session.username;
 
         do_show_publishing_options_pane(url, username);
     }
@@ -1174,9 +1174,11 @@ internal class CredentialsGrid : Gtk.Grid {
 }
 
 internal class Session : Publishing.RESTSupport.Session {
-    private string? url = null;
-    private string? username = null;
-    private string? key = null;
+
+    // Properties
+    public string? url { get; private set; default = null; }
+    public string? username { get; private set; default = null; }
+    public string? key { get; private set; default = null; }
 
     public Session() {
     }
@@ -1199,16 +1201,9 @@ internal class Session : Publishing.RESTSupport.Session {
         key = null;
     }
 
-    public string get_username() {
-        return username;
+
     }
 
-    public string get_url() {
-        return url;
-    }
-
-    public string get_key() {
-        return key;
     }
 
 }
