@@ -165,6 +165,39 @@ private class BaseGalleryTransaction : Publishing.RESTSupport.Transaction {
 
     }
 
+    protected unowned Json.Node get_root_node()
+            throws Spit.Publishing.PublishingError {
+
+        string json_object;
+        unowned Json.Node root_node;
+
+        json_object = get_response();
+
+        if ((null == json_object) || (0 == json_object.length))
+            throw new Spit.Publishing.PublishingError.MALFORMED_RESPONSE(
+                "No response data from %s", get_endpoint_url());
+
+        debug("json_object: %s", json_object);
+
+        try {
+            this.parser.load_from_data(json_object);
+        }
+        catch (GLib.Error e) {
+            // If this didn't work, reset the "executed" state
+            debug("ERROR: didn't load JSON data");
+            set_is_executed(false);
+            throw new Spit.Publishing.PublishingError.PROTOCOL_ERROR(e.message);
+        }
+
+        root_node = this.parser.get_root();
+        if (root_node.is_null())
+            throw new Spit.Publishing.PublishingError.MALFORMED_RESPONSE(
+                "Root node is null, doesn't appear to be JSON data");
+
+        return root_node;
+
+    }
+
 }
 
 private class KeyFetchTransaction : BaseGalleryTransaction {
@@ -247,39 +280,6 @@ private class GalleryRequestTransaction : BaseGalleryTransaction {
 
     }
 
-    protected unowned Json.Node get_root_node()
-            throws Spit.Publishing.PublishingError {
-
-        string json_object;
-        unowned Json.Node root_node;
-
-        json_object = get_response();
-
-        if ((null == json_object) || (0 == json_object.length))
-            throw new Spit.Publishing.PublishingError.MALFORMED_RESPONSE(
-                "No response data from %s", get_endpoint_url());
-
-        debug("json_object: %s", json_object);
-
-        try {
-            this.parser.load_from_data(json_object);
-        }
-        catch (GLib.Error e) {
-            // If this didn't work, reset the "executed" state
-            debug("ERROR: didn't load JSON data");
-            set_is_executed(false);
-            throw new Spit.Publishing.PublishingError.PROTOCOL_ERROR(e.message);
-        }
-
-        root_node = this.parser.get_root();
-        if (root_node.is_null())
-            throw new Spit.Publishing.PublishingError.MALFORMED_RESPONSE(
-                "Root node is null, doesn't appear to be JSON data");
-
-        return root_node;
-
-    }
-
 }
 
 private class GetAlbumURLsTransaction : GalleryRequestTransaction {
@@ -295,8 +295,17 @@ private class GetAlbumURLsTransaction : GalleryRequestTransaction {
 
     public string [] get_album_urls() {
 
-        unowned Json.Node root_node = get_root_node();
-        unowned Json.Array all_members =
+        unowned Json.Node root_node;
+        unowned Json.Array all_members;
+
+        try {
+            root_node = get_root_node();
+        }
+        catch (Spit.Publishing.PublishingError e) {
+            error("Could not get root node");
+        }
+
+        all_members =
             root_node.get_object().get_array_member("members");
 
         string [] member_urls = null;
