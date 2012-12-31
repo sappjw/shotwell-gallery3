@@ -114,8 +114,6 @@ private struct AlbumInfo {
 
 private class Album {
 
-
-    }
     // Properties
     public string name { get; private set; default = ""; }
     public string title { get; private set; default = ""; }
