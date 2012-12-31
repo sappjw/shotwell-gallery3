@@ -853,8 +853,24 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
 
     private void on_album_fetch_error(Publishing.RESTSupport.Transaction bad_txn,
             Spit.Publishing.PublishingError err) {
-        // TODO: expand this
-        on_key_fetch_error(bad_txn, err);
+        bad_txn.completed.disconnect(on_key_fetch_complete);
+        bad_txn.network_error.disconnect(on_key_fetch_error);
+
+        if (!is_running())
+            return;
+
+        // ignore these events if the session is not auth'd
+        if (!session.is_authenticated())
+            return;
+
+        debug("EVENT: network transaction to fetch albums " +
+            "failed; response = \'%s\'.",
+            bad_txn.get_response());
+
+        // Maybe the saved credentials are bad, so have the user try
+        // again
+        do_show_credentials_pane(CredentialsPane.Mode.NOT_GALLERY_URL);
+    }
 
     private void on_album_create_error(Publishing.RESTSupport.Transaction bad_txn,
             Spit.Publishing.PublishingError err) {
