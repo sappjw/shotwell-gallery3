@@ -909,7 +909,6 @@ internal class PublishingOptionsPane : Spit.Publishing.DialogPane, GLib.Object {
     private Gtk.Button logout_button = null;
 
     private Album[] albums;
-    private string username;
     private weak Spit.Publishing.PluginHost host;
 
     public signal void publish(PublishingParameters parameters,
@@ -919,7 +918,6 @@ internal class PublishingOptionsPane : Spit.Publishing.DialogPane, GLib.Object {
     public PublishingOptionsPane(Spit.Publishing.PluginHost host,
             string url, string username, Album[] albums,
             Gtk.Builder builder, bool strip_metadata) {
-        this.username = username;
         this.albums = albums;
         this.host = host;
 
@@ -958,7 +956,11 @@ internal class PublishingOptionsPane : Spit.Publishing.DialogPane, GLib.Object {
         if (create_new_radio.get_active()) {
             album_name = new_album_entry.get_text();
             host.set_config_string(LAST_ALBUM_CONFIG_KEY, album_name);
-            publish(new PublishingParameters.to_new_album(album_name),
+            PublishingParameters param =
+                new PublishingParameters.to_new_album(album_name,
+                    "/item/1");
+            debug("Trying to publish to \"%s\"", album_name);
+            publish(param,
                 strip_metadata_check.get_active());
         } else {
             album_name =
