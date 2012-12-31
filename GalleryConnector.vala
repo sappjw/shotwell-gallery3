@@ -975,6 +975,20 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
         do_publish(new_params);
     }
 
+    private void on_upload_status_updated(int file_number,
+        double completed_fraction) {
+
+        if (!is_running())
+            return;
+
+        debug("EVENT: uploader reports upload %.2f percent complete.",
+            100.0 * completed_fraction);
+
+        assert(progress_reporter != null);
+
+        progress_reporter(file_number, completed_fraction);
+
+    }
 
     private void
     on_publish_complete(Publishing.RESTSupport.BatchUploader uploader,
@@ -1567,8 +1581,47 @@ internal class Session : Publishing.RESTSupport.Session {
         key = null;
     }
 
+}
+
+internal class Uploader : Publishing.RESTSupport.BatchUploader {
+
+    private PublishingParameters parameters;
+
+    public Uploader(Session session,
+            Spit.Publishing.Publishable[] publishables,
+            PublishingParameters parameters) {
+
+        base(session, publishables);
+
+        this.parameters = parameters;
 
     }
+
+    private void preprocess_publishable(
+            Spit.Publishing.Publishable publishable) {
+
+        //TODO: add tags
+
+        //if (publishable.get_media_type() !=
+        //        Spit.Publishing.Publisher.MediaType.PHOTO)
+        //    return;
+
+        //GExiv2.Metadata publishable_metadata = new GExiv2.Metadata();
+        //try {
+        //    publishable_metadata.open_path(publishable.get_serialized_file().get_path());
+        //} catch (GLib.Error err) {
+        //    warning("couldn't read metadata from file '%s' for upload preprocessing.",
+        //        publishable.get_serialized_file().get_path());
+        //}
+
+        }
+
+    protected override Publishing.RESTSupport.Transaction
+        create_transaction(Spit.Publishing.Publishable publishable) {
+
+        preprocess_publishable(get_current_publishable());
+        return new BaseGalleryCreateTransaction((Session) get_session(),
+            parameters, get_current_publishable());
 
     }
 
