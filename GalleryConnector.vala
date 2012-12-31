@@ -437,6 +437,8 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
       Spit.Publishing.Publisher.MediaType.NONE;
     private string key = null;
 
+    private PublishingOptionsPane publishing_options_pane = null;
+
     public GalleryPublisher(Spit.Publishing.Service service,
         Spit.Publishing.PluginHost host) {
         this.service = service;
@@ -633,12 +635,16 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
             return;
         }
 
-        PublishingOptionsPane pane =
+        publishing_options_pane =
             new PublishingOptionsPane(host, url, username, albums,
                 builder, get_persistent_strip_metadata());
-        pane.publish.connect(on_publishing_options_pane_publish);
-        pane.logout.connect(on_publishing_options_pane_logout);
-        host.install_dialog_pane(pane);
+        publishing_options_pane.publish.connect(
+            on_publishing_options_pane_publish);
+        publishing_options_pane.logout.connect(
+            on_publishing_options_pane_logout);
+        host.install_dialog_pane(publishing_options_pane);
+
+    }
 
     private void do_create_album(PublishingParameters parameters) {
 
