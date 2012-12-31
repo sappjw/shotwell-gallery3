@@ -425,6 +425,70 @@ private class GalleryAlbumCreateTransaction : BaseGalleryTransaction {
 
 }
 
+private class BaseGalleryCreateTransaction : Publishing.RESTSupport.UploadTransaction {
+
+    private Session session;
+    protected Json.Generator generator;
+    // Properties
+    public PublishingParameters parameters { get; private set; }
+
+    public BaseGalleryCreateTransaction(Session session,
+            PublishingParameters parameters,
+            Spit.Publishing.Publishable publishable) {
+
+        base.with_endpoint_url(session, publishable,
+            parameters.parent_url);
+
+        this.parameters = parameters;
+        this.session = session;
+
+        add_header("X-Gallery-Request-Key", session.key);
+        add_header("X-Gallery-Request-Method", "POST");
+
+        GLib.HashTable<string, string> disposition_table =
+            new GLib.HashTable<string, string>(GLib.str_hash,
+                                               GLib.str_equal);
+        string? filename = publishable.get_publishing_name();
+        if (filename == null || filename == "")
+            filename = publishable.get_param_string(
+                Spit.Publishing.Publishable.PARAM_STRING_BASENAME);
+
+        disposition_table.insert("file",
+            Soup.URI.encode(filename, null));
+
+        set_binary_disposition_table(disposition_table);
+
+        // Do the JSON stuff
+        generator = new Json.Generator();
+
+        Json.Node root_node = new Json.Node(Json.NodeType.OBJECT);
+        Json.Object obj = new Json.Object();
+        obj.set_string_member("type", parameters.entity_type.to_string());
+        obj.set_string_member("name", filename);
+
+/*
+        switch (parameters.entity_type) {
+
+            case PublishingParameters.Type.ALBUM.to_string():
+
+                obj.set_string_member("name",
+                    parameters.album_name);
+                obj.set_string_member("title",
+                    parameters.album_title);
+                break;
+
+            default:
+
+                error("Not implemented");
+
+        }
+*/
+        root_node.set_object(obj);
+        generator.set_root(root_node);
+    }
+
+}
+
 
 public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
     private weak Spit.Publishing.PluginHost host = null;
