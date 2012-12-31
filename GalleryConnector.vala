@@ -361,6 +361,70 @@ private class GetAlbumsTransaction : GalleryRequestTransaction {
 
 }
 
+private class GalleryAlbumCreateTransaction : BaseGalleryTransaction {
+
+    // Properties
+    public PublishingParameters parameters { get; private set; }
+
+    // GalleryAlbumCreateTransaction constructor
+    //
+    // parameters: New album parameters
+    public GalleryAlbumCreateTransaction(Session session,
+            PublishingParameters parameters) {
+
+        if (!session.is_authenticated()) {
+            error("Not authenticated");
+        }
+        else {
+            Json.Generator entity = new Json.Generator();
+            Json.Node root_node = new Json.Node(Json.NodeType.OBJECT);
+            Json.Object obj = new Json.Object();
+
+            base(session, session.url,
+                parameters.parent_url,
+                Publishing.RESTSupport.HttpMethod.POST);
+            add_header("X-Gallery-Request-Key", session.key);
+            add_header("X-Gallery-Request-Method", "POST");
+
+            this.parameters = parameters;
+
+            obj.set_string_member("type", "album");
+            obj.set_string_member("name", parameters.album_name);
+            obj.set_string_member("title", parameters.album_title);
+            root_node.set_object(obj);
+            entity.set_root(root_node);
+
+            size_t entity_length;
+            string entity_value = entity.to_data(out entity_length);
+
+            debug("created entity: %s", entity_value);
+
+            add_argument("entity", entity_value);
+        }
+
+    }
+
+    public string get_new_album_url() {
+
+        unowned Json.Node root_node;
+        string new_url;
+
+        try {
+            root_node = get_root_node();
+        }
+        catch (Spit.Publishing.PublishingError e) {
+            error("Could not get root node");
+        }
+
+        new_url =
+            root_node.get_object().get_string_member("url");
+
+        return new_url;
+
+    }
+
+}
+
 
 public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
     private weak Spit.Publishing.PluginHost host = null;
@@ -575,6 +639,30 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
         pane.publish.connect(on_publishing_options_pane_publish);
         pane.logout.connect(on_publishing_options_pane_logout);
         host.install_dialog_pane(pane);
+
+    private void do_create_album(PublishingParameters parameters) {
+
+        debug("ACTION: creating album");
+
+        GalleryAlbumCreateTransaction album_trans =
+            new GalleryAlbumCreateTransaction(session, parameters);
+        album_trans.network_error.connect(on_album_create_error);
+        album_trans.completed.connect(on_album_create_complete);
+
+        try {
+            album_trans.execute();
+        } catch (Spit.Publishing.PublishingError err) {
+            // 403 errors are recoverable, so don't post the error to
+            // our host immediately; instead, try to recover from it
+            on_album_create_error(album_trans, err);
+        }
+
+    }
+
+    private void do_publish(PublishingParameters parameters) {
+
+        debug("ACTION: publishing items");
+    }
     }
 
     // Callbacks
@@ -670,6 +758,28 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
             Spit.Publishing.PublishingError err) {
         // TODO: expand this
         on_key_fetch_error(bad_txn, err);
+
+    private void on_album_create_error(Publishing.RESTSupport.Transaction bad_txn,
+            Spit.Publishing.PublishingError err) {
+        // TODO: consider just posting the error
+        bad_txn.completed.disconnect(on_key_fetch_complete);
+        bad_txn.network_error.disconnect(on_key_fetch_error);
+
+        if (!is_running())
+            return;
+
+        // ignore these events if the session is not auth'd
+        if (!session.is_authenticated())
+            return;
+
+        debug("EVENT: network transaction to create an album " +
+            "failed; response = \'%s\'.",
+            bad_txn.get_response());
+
+        // Maybe the saved credentials are bad, so have the user try
+        // again
+        do_show_credentials_pane(CredentialsPane.Mode.BAD_ACTION);
+    }
     }
 
     private void
@@ -717,6 +827,29 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
         do_show_publishing_options_pane(url, username);
     }
 
+    private void
+    on_album_create_complete(Publishing.RESTSupport.Transaction txn) {
+        txn.completed.disconnect(on_album_create_complete);
+        txn.network_error.disconnect(on_album_create_error);
+
+        if (!is_running())
+            return;
+
+        // ignore these events if the session is not auth'd
+        if (!session.is_authenticated())
+            return;
+
+        PublishingParameters new_params =
+            (txn as GalleryAlbumCreateTransaction).parameters;
+        new_params.parent_url =
+            (txn as GalleryAlbumCreateTransaction).get_new_album_url();
+
+        debug("EVENT: user has created an album at \"%s\".",
+            new_params.parent_url);
+
+        do_publish(new_params);
+    }
+
     private void on_publishing_options_pane_logout() {
         if (!is_running())
             return;
@@ -728,10 +861,27 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
     }
 
     private void on_publishing_options_pane_publish(PublishingParameters parameters, bool strip_metadata) {
+        publishing_options_pane.publish.disconnect(
+            on_publishing_options_pane_publish);
+        publishing_options_pane.logout.disconnect(
+            on_publishing_options_pane_logout);
+
         if (!is_running())
             return;
 
         debug("EVENT: user is attempting to publish something.");
+
+        parameters.strip_metadata = strip_metadata;
+
+        if (parameters.is_to_new_album()) {
+            debug("EVENT: must create new album \"%s\" first.",
+                parameters.album_name);
+            do_create_album(parameters);
+        }
+        else {
+            error("Not implemented.");
+            do_publish(parameters);
+        }
     }
 
 }
