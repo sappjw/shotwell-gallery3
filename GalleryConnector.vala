@@ -1062,33 +1062,91 @@ internal class PublishingOptionsPane : Spit.Publishing.DialogPane, GLib.Object {
 }
 
 internal class PublishingParameters {
-    private string album_name;
-    private string album_url;
-    private bool album_public;
+
+    public enum Type {
+        ALBUM,
+        PHOTO,
+        MOVIE;
+
+        public string to_string() {
+            switch (this) {
+                case Type.ALBUM:
+                    return "album";
+
+                case Type.PHOTO:
+                    return "photo";
+
+                case Type.MOVIE:
+                    return "movie";
+
+                default:
+                    error("unrecognized PublishingParameters.Type enumeration value");
+            }
+        }
+    }
+
+    // Private variables for properties
+    private string _album_name = "";
+    private string _album_title = "";
+    private string _album_url = "";
+    private string _parent_url = "";
+
+    // Properties
+    public string album_name {
+        get {
+            //assert(is_to_new_album());
+            debug("getting album_name");
+            return _album_name;
+        }
+        private set { _album_name = value; }
+    }
+    public string album_title {
+        get {
+            assert(is_to_new_album());
+            debug("getting album_title");
+            return _album_title;
+        }
+        private set { _album_title = value; }
+    }
+    public string album_url {
+        get {
+            assert(is_to_new_album());
+            debug("getting album_url");
+            return _album_url;
+        }
+        private set { _album_url = value; }
+    }
+    public string parent_url {
+        get {
+            assert(is_to_new_album());
+            debug("getting parent_url");
+            return _parent_url;
+        }
+        set { _parent_url = value; }
+    }
+    public Type entity_type { get; private set; default = Type.ALBUM; }
+    public string entity_title { get; private set; default = ""; }
+    public int photo_major_axis_size { get; private set; default = 0; }
+    public bool strip_metadata { get; set; default = false; }
 
     private PublishingParameters() {
     }
 
-    public PublishingParameters.to_new_album(string album_name) {
-        this.album_name = album_name;
+    public PublishingParameters.to_new_album(string new_album_title,
+            string new_parent_url) {
+        this.album_name = new_album_title.delimit(" ", '-');
+        this.album_title = new_album_title;
+        //this.entity_type = type_;
+        this.parent_url = new_parent_url;
     }
 
     public PublishingParameters.to_existing_album(string album_url) {
         this.album_url = album_url;
+        //this.entity_type = type_;
     }
 
     public bool is_to_new_album() {
-        return (album_name != null);
-    }
-
-    public string get_album_name() {
-        assert(is_to_new_album());
-        return album_name;
-    }
-
-    public string get_album_entry_url() {
-        assert(!is_to_new_album());
-        return album_url;
+        return (album_name != "");
     }
 
     // converts a publish-to-new-album parameters object into a publish-to-existing-album
