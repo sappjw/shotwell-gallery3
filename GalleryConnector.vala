@@ -732,7 +732,34 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
     private void do_publish(PublishingParameters parameters) {
 
         debug("ACTION: publishing items");
+
+        set_persistent_strip_metadata(parameters.strip_metadata);
+        host.set_service_locked(true);
+        progress_reporter =
+        host.serialize_publishables(parameters.photo_major_axis_size,
+            parameters.strip_metadata);
+
+        // Serialization is a long and potentially cancellable operation, so before we use
+        // the publishables, make sure that the publishing interaction is still running. If it
+        // isn't the publishing environment may be partially torn down so do a short-circuit
+        // return
+        if (!is_running())
+            return;
+
+        Uploader uploader =
+            new Uploader(session, host.get_publishables(),
+                parameters);
+        uploader.upload_complete.connect(on_publish_complete);
+        uploader.upload_error.connect(on_publish_error);
+        uploader.upload(on_upload_status_updated);
+
     }
+
+    private void do_show_success_pane() {
+        debug("ACTION: showing success pane.");
+
+        host.set_service_locked(false);
+        host.install_success_pane();
     }
 
     // Callbacks
@@ -850,6 +877,18 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
         // again
         do_show_credentials_pane(CredentialsPane.Mode.BAD_ACTION);
     }
+
+    private void on_publish_error(Publishing.RESTSupport.BatchUploader uploader,
+            Spit.Publishing.PublishingError err) {
+        if (!is_running())
+            return;
+
+        debug("EVENT: uploader reports upload error = '%s'.", err.message);
+
+        uploader.upload_complete.disconnect(on_publish_complete);
+        uploader.upload_error.disconnect(on_publish_error);
+
+        host.post_error(err);
     }
 
     private void
@@ -920,7 +959,33 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
         do_publish(new_params);
     }
 
+
+    private void
+    on_publish_complete(Publishing.RESTSupport.BatchUploader uploader,
+            int num_published) {
+        uploader.upload_complete.disconnect(on_publish_complete);
+        uploader.upload_error.disconnect(on_publish_error);
+
+        if (!is_running())
+            return;
+
+        // ignore these events if the session is not auth'd
+        if (!session.is_authenticated())
+            return;
+
+        debug("EVENT: publishing complete; %d items published",
+            num_published);
+
+        do_show_success_pane();
+
+    }
+
     private void on_publishing_options_pane_logout() {
+        publishing_options_pane.publish.disconnect(
+            on_publishing_options_pane_publish);
+        publishing_options_pane.logout.disconnect(
+            on_publishing_options_pane_logout);
+
         if (!is_running())
             return;
 
@@ -1114,14 +1179,9 @@ internal class PublishingOptionsPane : Spit.Publishing.DialogPane, GLib.Object {
 
     public void on_pane_installed() {
         installed();
-
-        publish.connect(notify_publish);
-        logout.connect(notify_logout);
     }
 
     public void on_pane_uninstalled() {
-        publish.disconnect(notify_publish);
-        logout.disconnect(notify_logout);
     }
 }
 
