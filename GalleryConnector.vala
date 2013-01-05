@@ -605,7 +605,7 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
 
         CredentialsPane creds_pane =
             new CredentialsPane(host, mode, get_gallery_url(),
-                get_gallery_username());
+                get_gallery_username(), get_api_key());
         creds_pane.go_back.connect(on_credentials_go_back);
         creds_pane.login.connect(on_credentials_login);
 
@@ -1327,26 +1327,48 @@ internal class CredentialsPane : Spit.Publishing.DialogPane, GLib.Object {
     }
 
     private CredentialsGrid frame = null;
+    private Gtk.Widget grid_widget = null;
 
     public signal void go_back();
-    public signal void login(string url, string uname, string password);
+    public signal void login(string url, string uname, string password,
+        string key);
 
     public CredentialsPane(Spit.Publishing.PluginHost host,
             Mode mode = Mode.INTRO,
-            string? url = null, string? username = null) {
-        frame = new CredentialsGrid(host, mode, url, username);
+            string? url = null, string? username = null,
+            string? key = null) {
+
+        Gtk.Builder builder = new Gtk.Builder();
+
+        try {
+            builder.add_from_file(
+                host.get_module_file().get_parent().get_child(
+                    "gallery3_authentication_pane.glade").get_path());
+        }
+        catch (Error e) {
+            warning("Could not parse UI file! Error: %s.", e.message);
+            host.post_error(
+                new Spit.Publishing.PublishingError.LOCAL_FILE_ERROR(
+                    _("A file required for publishing is unavailable. Publishing to Gallery3 can't continue.")));
+            return;
+        }
+
+        frame = new CredentialsGrid(host, mode, url, username, key, builder);
+        grid_widget = frame.pane_widget as Gtk.Widget;
     }
 
     protected void notify_go_back() {
         go_back();
     }
 
-    protected void notify_login(string url, string uname, string password) {
-        login(url, uname, password);
+    protected void notify_login(string url, string uname,
+            string password, string key) {
+        login(url, uname, password, key);
     }
 
     public Gtk.Widget get_widget() {
-        return frame;
+        assert(null != grid_widget);
+        return grid_widget;
     }
 
     public Spit.Publishing.DialogPane.GeometryOptions get_preferred_geometry() {
@@ -1366,51 +1388,58 @@ internal class CredentialsPane : Spit.Publishing.DialogPane, GLib.Object {
     }
 }
 
-internal class CredentialsGrid : Gtk.Grid {
+internal class CredentialsGrid : GLib.Object {
     private const string INTRO_MESSAGE = _("Enter the URL for your Gallery3 site and the username and password for your Gallery3 account.");
     private const string FAILED_RETRY_MESSAGE = _("Your Gallery didn't recognize the username and password you entered. To try again, re-enter your username and password below.");
     private const string NOT_GALLERY_URL_MESSAGE = _("The URL entered does not appear to be the main directory of a Gallery3 instance. Please make sure you typed it correctly and it does not have any trailing components (e.g., index.php).");
     private const string BAD_ACTION_MESSAGE = _("The last action attempted on your Gallery failed. Please make sure the credentials for your Gallery are correct. You may also want to check to see if albums were created or media were partially uploaded.");
 
-    private const int UNIFORM_ACTION_BUTTON_WIDTH = 102;
-    private const int VERTICAL_SPACE_HEIGHT = 32;
-    public const int STANDARD_CONTENT_LABEL_WIDTH = 500;
-
     private weak Spit.Publishing.PluginHost host = null;
-    private Gtk.Entry username_entry;
-    private Gtk.Entry password_entry;
-    private Gtk.Entry url_entry;
-    private Gtk.Entry key_entry;
-    private Gtk.Button login_button;
-    private Gtk.Button go_back_button;
+    private Gtk.Builder builder = null;
+    public Gtk.Grid pane_widget { get; private set; default = null; }
+    private Gtk.Label intro_message_label = null;
+    private Gtk.Entry url_entry = null;
+    private Gtk.Entry username_entry = null;
+    private Gtk.Entry password_entry = null;
+    private Gtk.Entry key_entry = null;
+    private Gtk.Button login_button = null;
+    private Gtk.Button go_back_button = null;
     private string? url = null;
     private string? username = null;
+    private string? key = null;
 
     public signal void go_back();
-    public signal void login(string url, string username, string password);
+    public signal void login(string url, string username,
+        string password, string key);
 
     public CredentialsGrid(Spit.Publishing.PluginHost host,
             CredentialsPane.Mode mode = CredentialsPane.Mode.INTRO,
-            string? url = null, string? username = null) {
+            string? url = null, string? username = null,
+            string? key = null,
+            Gtk.Builder builder) {
         this.host = host;
         this.url = url;
+        this.key = key;
         this.username = username;
 
-        // Set inter-child spacing and alignment for this grid
-        set_row_spacing(60);
-        set_valign(Gtk.Align.CENTER);
+        this.builder = builder;
+        assert(builder != null);
+        assert(builder.get_objects().length() > 0);
+
+        // pull in all widgets from builder
+        pane_widget = builder.get_object("gallery3_auth_pane_widget") as Gtk.Grid;
+        intro_message_label = builder.get_object("intro_message_label") as Gtk.Label;
+        url_entry = builder.get_object("url_entry") as Gtk.Entry;
+        username_entry = builder.get_object("username_entry") as Gtk.Entry;
+        key_entry = builder.get_object("key_entry") as Gtk.Entry;
+        password_entry = builder.get_object("password_entry") as Gtk.Entry;
+        go_back_button = builder.get_object("go_back_button") as Gtk.Button;
+        login_button = builder.get_object("login_button") as Gtk.Button;
 
         // Intro message
-        Gtk.Label intro_message_label = new Gtk.Label("");
-        intro_message_label.set_line_wrap(true);
-        attach(intro_message_label, 0, 0, 5, 1);
-        intro_message_label.set_size_request(STANDARD_CONTENT_LABEL_WIDTH, -1);
-        intro_message_label.set_halign(Gtk.Align.CENTER);
-        intro_message_label.set_valign(Gtk.Align.CENTER);
-        intro_message_label.set_hexpand(true);
         switch (mode) {
             case CredentialsPane.Mode.INTRO:
-                intro_message_label.set_text(INTRO_MESSAGE);
+                intro_message_label.set_markup(INTRO_MESSAGE);
             break;
 
             case CredentialsPane.Mode.FAILED_RETRY:
@@ -1428,94 +1457,35 @@ internal class CredentialsGrid : Gtk.Grid {
             break;
         }
 
-        // Labels for the entry items
-        // Put in a grid for different inter-row spacing
-        Gtk.Grid entry_widgets_grid = new Gtk.Grid();
-        entry_widgets_grid.set_row_spacing(20);
-        entry_widgets_grid.set_column_spacing(10);
-        entry_widgets_grid.set_halign(Gtk.Align.CENTER);
-        entry_widgets_grid.set_valign(Gtk.Align.CENTER);
-        // URL
-        Gtk.Label url_entry_label = new Gtk.Label.with_mnemonic(_("_URL:"));
-        url_entry_label.set_halign(Gtk.Align.START);
-        url_entry_label.set_valign(Gtk.Align.CENTER);
-        url_entry_label.set_hexpand(true);
-        url_entry_label.set_vexpand(true);
-        // User name
-        Gtk.Label username_entry_label = new Gtk.Label.with_mnemonic(_("User _name:"));
-        username_entry_label.set_halign(Gtk.Align.START);
-        username_entry_label.set_valign(Gtk.Align.CENTER);
-        username_entry_label.set_hexpand(true);
-        username_entry_label.set_vexpand(true);
-        // Password
-        Gtk.Label password_entry_label = new Gtk.Label.with_mnemonic(_("_Password:"));
-        password_entry_label.set_halign(Gtk.Align.START);;
-        password_entry_label.set_valign(Gtk.Align.CENTER);;
-        password_entry_label.set_hexpand(true);
-        password_entry_label.set_vexpand(true);
-
-        // Entry items
-        // URL
-        url_entry = new Gtk.Entry();
-        if (url != null)
+        // Gallery URL
+        if (url != null) {
             url_entry.set_text(url);
+            username_entry.grab_focus();
+        }
         url_entry.changed.connect(on_url_or_username_changed);
-        url_entry.set_hexpand(true);
-        url_entry.set_vexpand(true);
-        url_entry.set_halign(Gtk.Align.FILL);
-        url_entry.set_valign(Gtk.Align.FILL);
         // User name
-        username_entry = new Gtk.Entry();
-        if (username != null)
+        if (username != null) {
             username_entry.set_text(username);
+            password_entry.grab_focus();
+        }
         username_entry.changed.connect(on_url_or_username_changed);
-        username_entry.set_hexpand(true);
-        username_entry.set_vexpand(true);
-        username_entry.set_halign(Gtk.Align.FILL);
-        username_entry.set_valign(Gtk.Align.FILL);
-        // Password
-        password_entry = new Gtk.Entry();
-        password_entry.set_visibility(false);
-        password_entry.set_hexpand(true);
-        password_entry.set_vexpand(true);
-        password_entry.set_halign(Gtk.Align.FILL);
-        password_entry.set_valign(Gtk.Align.FILL);
 
-        // Arrange the sub-grid containing the entry items
-        entry_widgets_grid.attach(url_entry_label, 0, 0, 1, 1);
-        entry_widgets_grid.attach(username_entry_label, 2, 1, 1, 1);
-        entry_widgets_grid.attach(password_entry_label, 2, 2, 1, 1);
-        entry_widgets_grid.attach(url_entry, 1, 0, 4, 1);
-        entry_widgets_grid.attach(username_entry, 3, 1, 1, 1);
-        entry_widgets_grid.attach(password_entry, 3, 2, 1, 1);
+        // Key
+        if (key != null) {
+            key_entry.set_text(key);
+            key_entry.grab_focus();
+        }
+        key_entry.changed.connect(on_url_or_username_changed);
 
         // Buttons
-        go_back_button = new Gtk.Button.with_mnemonic(_("Go _Back"));
         go_back_button.clicked.connect(on_go_back_button_clicked);
-        go_back_button.set_hexpand(true);
-        go_back_button.set_vexpand(true);
-        go_back_button.set_valign(Gtk.Align.CENTER);
-        go_back_button.set_halign(Gtk.Align.START);
-        go_back_button.set_size_request(UNIFORM_ACTION_BUTTON_WIDTH, -1);
-        login_button = new Gtk.Button.with_mnemonic(_("_Login"));
         login_button.clicked.connect(on_login_button_clicked);
         login_button.set_sensitive((url != null) && (username != null));
-        login_button.set_hexpand(true);
-        login_button.set_vexpand(true);
-        login_button.set_valign(Gtk.Align.CENTER);
-        login_button.set_halign(Gtk.Align.END);
-        login_button.set_size_request(UNIFORM_ACTION_BUTTON_WIDTH, -1);
-        entry_widgets_grid.attach(go_back_button, 1, 3, 1, 1);
-        entry_widgets_grid.attach(login_button, 3, 3, 1, 1);
-        attach(entry_widgets_grid, 0, 1, 5, 4);
-
-        url_entry_label.set_mnemonic_widget(url_entry);
-        username_entry_label.set_mnemonic_widget(username_entry);
-        password_entry_label.set_mnemonic_widget(password_entry);
     }
 
     private void on_login_button_clicked() {
-        login(url_entry.get_text(), username_entry.get_text(), password_entry.get_text());
+        login(url_entry.get_text(), username_entry.get_text(),
+            password_entry.get_text(), key_entry.get_text());
     }
 
     private void on_go_back_button_clicked() {
@@ -1523,16 +1493,16 @@ internal class CredentialsGrid : Gtk.Grid {
     }
 
     private void on_url_or_username_changed() {
-        login_button.set_sensitive((url_entry.get_text() != "") && (username_entry.get_text() != ""));
+        login_button.set_sensitive(
+            ((url_entry.get_text() != "") &&
+             (username_entry.get_text() != "")) ||
+            (key_entry.get_text() != ""));
     }
 
     public void installed() {
         host.set_service_locked(false);
 
-        url_entry.grab_focus();
-        username_entry.set_activates_default(true);
-        password_entry.set_activates_default(true);
-        login_button.can_default = true;
+        // TODO: following line necessary?
         host.set_dialog_default_widget(login_button);
     }
 }
