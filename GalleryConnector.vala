@@ -125,13 +125,13 @@ private class Album {
     // Each element is a collection
     public Album(Json.Object collection) {
 
-        //unowned Json.Object collection = element.get_object();
         unowned Json.Object entity =
             collection.get_object_member("entity");
 
         title = entity.get_string_member("title");
         name = entity.get_string_member("name");
-        url = entity.get_string_member("web_url");
+        parentname = entity.get_string_member("parent");
+        url = collection.get_string_member("url");
         editable = entity.get_boolean_member("can_edit");
 
     }
@@ -434,8 +434,11 @@ private class BaseGalleryCreateTransaction : Publishing.RESTSupport.UploadTransa
             PublishingParameters parameters,
             Spit.Publishing.Publishable publishable) {
 
+        string album_url = (parameters.is_to_new_album()) ?
+            parameters.parent_url : parameters.album_url;
+
         base.with_endpoint_url(session, publishable,
-            parameters.parent_url);
+            album_url);
 
         this.parameters = parameters;
         this.session = session;
@@ -451,8 +454,8 @@ private class BaseGalleryCreateTransaction : Publishing.RESTSupport.UploadTransa
             filename = publishable.get_param_string(
                 Spit.Publishing.Publishable.PARAM_STRING_BASENAME);
 
-        disposition_table.insert("file",
-            Soup.URI.encode(filename, null));
+        disposition_table.insert("filename", @"$(filename)");
+        disposition_table.insert("name", "file");
 
         set_binary_disposition_table(disposition_table);
 
@@ -464,25 +467,10 @@ private class BaseGalleryCreateTransaction : Publishing.RESTSupport.UploadTransa
         obj.set_string_member("type", parameters.entity_type.to_string());
         obj.set_string_member("name", filename);
 
-/*
-        switch (parameters.entity_type) {
-
-            case PublishingParameters.Type.ALBUM.to_string():
-
-                obj.set_string_member("name",
-                    parameters.album_name);
-                obj.set_string_member("title",
-                    parameters.album_title);
-                break;
-
-            default:
-
-                error("Not implemented");
-
-        }
-*/
         root_node.set_object(obj);
         generator.set_root(root_node);
+
+        add_argument("entity", generator.to_data(null));
     }
 
 }
@@ -1042,7 +1030,6 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
             do_create_album(parameters);
         }
         else {
-            error("Not implemented.");
             do_publish(parameters);
         }
     }
@@ -1262,7 +1249,6 @@ internal class PublishingParameters {
     }
     public string album_url {
         get {
-            assert(is_to_new_album());
             debug("getting album_url");
             return _album_url;
         }
@@ -1276,7 +1262,7 @@ internal class PublishingParameters {
         }
         set { _parent_url = value; }
     }
-    public Type entity_type { get; private set; default = Type.ALBUM; }
+    public Type entity_type { get; set; default = Type.ALBUM; }
     public string entity_title { get; private set; default = ""; }
     public int photo_major_axis_size { get; private set; default = 0; }
     public bool strip_metadata { get; set; default = false; }
@@ -1600,9 +1586,20 @@ internal class Uploader : Publishing.RESTSupport.BatchUploader {
 
         //TODO: add tags
 
-        //if (publishable.get_media_type() !=
-        //        Spit.Publishing.Publisher.MediaType.PHOTO)
-        //    return;
+        PublishingParameters.Type? media_type = null;
+
+        switch (publishable.get_media_type()) {
+            case Spit.Publishing.Publisher.MediaType.PHOTO:
+                media_type = PublishingParameters.Type.PHOTO;
+                break;
+
+            case Spit.Publishing.Publisher.MediaType.VIDEO:
+                media_type = PublishingParameters.Type.MOVIE;
+                break;
+        }
+        assert(null != media_type);
+
+        parameters.entity_type = media_type;
 
         //GExiv2.Metadata publishable_metadata = new GExiv2.Metadata();
         //try {
@@ -1615,7 +1612,7 @@ internal class Uploader : Publishing.RESTSupport.BatchUploader {
         }
 
     protected override Publishing.RESTSupport.Transaction
-        create_transaction(Spit.Publishing.Publishable publishable) {
+            create_transaction(Spit.Publishing.Publishable publishable) {
 
         preprocess_publishable(get_current_publishable());
         return new BaseGalleryCreateTransaction((Session) get_session(),
