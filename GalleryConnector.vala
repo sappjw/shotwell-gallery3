@@ -101,17 +101,6 @@ private const string DEFAULT_ALBUM_DIR = _("Shotwell");
 private const string DEFAULT_ALBUM_TITLE = _("Shotwell default directory");
 private const string CONFIG_NAME = "gallery3";
 
-private struct AlbumPerms {
-    bool add;
-    bool write;
-    bool del_alb;
-    bool create_sub;
-}
-
-private struct AlbumInfo {
-    string extrafields;
-}
-
 private class Album {
 
     // Properties
