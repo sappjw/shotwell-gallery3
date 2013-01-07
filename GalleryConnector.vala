@@ -657,6 +657,7 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
 
     private void do_show_publishing_options_pane(string url,
             string username) {
+
         debug("ACTION: showing publishing options pane");
 
         Gtk.Builder builder = new Gtk.Builder();
@@ -1075,8 +1076,7 @@ internal class PublishingOptionsPane : Spit.Publishing.DialogPane, GLib.Object {
             _("Publishing to %s as %s.").printf(url, username));
         strip_metadata_check.set_active(strip_metadata);
 
-
-        // connect all signals.
+        // connect all signals
         use_existing_radio.clicked.connect(on_use_existing_radio_clicked);
         create_new_radio.clicked.connect(on_create_new_radio_clicked);
         new_album_entry.changed.connect(on_new_album_entry_changed);
