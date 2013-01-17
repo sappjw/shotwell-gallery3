@@ -209,39 +209,20 @@ private class KeyFetchTransaction : BaseGalleryTransaction {
 
     public string get_key() throws Spit.Publishing.PublishingError {
 
-        string json_object;
-
         if (key != "")
             return key;
 
-        json_object = get_response();
+        key = get_response();
 
-        if (json_object == null || json_object.length == 0)
+        // The returned data isn't actually a JSON object...
+        if (key == null || key == "" || key.length == 0)
             throw new Spit.Publishing.PublishingError.MALFORMED_RESPONSE(
                 "No response data from %s", get_endpoint_url());
 
-        // The returned data isn't actually a JSON object...
-        json_object = "{\"key\": " + json_object + "}";
-        debug("json_object: %s", json_object);
+        // Eliminate quotes surrounding key
+        key = key[1:-1];
 
-        try {
-            this.parser.load_from_data(json_object);
-        }
-        catch (GLib.Error e) {
-            // If this didn't work, reset the "executed" state
-            debug("ERROR: didn't load JSON data");
-            set_is_executed(false);
-            throw new Spit.Publishing.PublishingError.PROTOCOL_ERROR(e.message);
-        }
-
-        unowned Json.Node root_node = this.parser.get_root();
-        if (root_node.is_null())
-            throw new Spit.Publishing.PublishingError.MALFORMED_RESPONSE(
-                "Root node is null, doesn't appear to be JSON data");
-
-        this.key = root_node.get_object().get_string_member("key");
-
-        return this.key;
+        return key;
     }
 
     public void forget_key() {
