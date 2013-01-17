@@ -574,6 +574,8 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
         debug("ACTION: showing credentials capture pane in %s mode.",
           mode.to_string());
 
+        session.deauthenticate();
+
         CredentialsPane creds_pane =
             new CredentialsPane(host, mode, get_gallery_url(),
                 get_gallery_username(), get_api_key());
@@ -597,9 +599,10 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
         try {
             fetch_trans.execute();
         } catch (Spit.Publishing.PublishingError err) {
-            // 403 errors are recoverable, so don't post the error to
-            // our host immediately; instead, try to recover from it
-            on_key_fetch_error(fetch_trans, err);
+            //debug("Caught an error attempting to login");
+            //// 403 errors are recoverable, so don't post the error to
+            //// our host immediately; instead, try to recover from it
+            //on_key_fetch_error(fetch_trans, err);
         }
     }
 
@@ -607,15 +610,17 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
 
         GetAlbumURLsTransaction album_trans =
             new GetAlbumURLsTransaction(session);
-        album_trans.network_error.connect(on_album_fetch_error);
+        album_trans.network_error.connect(on_album_urls_fetch_error);
         album_trans.completed.connect(on_album_urls_fetch_complete);
 
         try {
             album_trans.execute();
         } catch (Spit.Publishing.PublishingError err) {
+            //debug("Caught an error attempting to fetch albums");
             // 403 errors are recoverable, so don't post the error to
             // our host immediately; instead, try to recover from it
-            on_album_fetch_error(album_trans, err);
+            //on_album_urls_fetch_error(album_trans, err);
+            //host.post_error(err);
         }
 
     }
@@ -809,10 +814,31 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
         }
     }
 
+    private void on_album_urls_fetch_error(Publishing.RESTSupport.Transaction bad_txn,
+            Spit.Publishing.PublishingError err) {
+        bad_txn.completed.disconnect(on_album_urls_fetch_complete);
+        bad_txn.network_error.disconnect(on_album_urls_fetch_error);
+
+        if (!is_running())
+            return;
+
+        // ignore these events if the session is not auth'd
+        if (!session.is_authenticated())
+            return;
+
+        debug("EVENT: network transaction to fetch album URLs " +
+            "failed; response = \'%s\'.",
+            bad_txn.get_response());
+
+        // Maybe the saved credentials are bad, so have the user try
+        // again
+        do_show_credentials_pane(CredentialsPane.Mode.NOT_GALLERY_URL);
+    }
+
     private void on_album_fetch_error(Publishing.RESTSupport.Transaction bad_txn,
             Spit.Publishing.PublishingError err) {
-        bad_txn.completed.disconnect(on_key_fetch_complete);
-        bad_txn.network_error.disconnect(on_key_fetch_error);
+        bad_txn.completed.disconnect(on_album_fetch_complete);
+        bad_txn.network_error.disconnect(on_album_fetch_error);
 
         if (!is_running())
             return;
@@ -833,8 +859,8 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
     private void on_album_create_error(Publishing.RESTSupport.Transaction bad_txn,
             Spit.Publishing.PublishingError err) {
         // TODO: consider just posting the error
-        bad_txn.completed.disconnect(on_key_fetch_complete);
-        bad_txn.network_error.disconnect(on_key_fetch_error);
+        bad_txn.completed.disconnect(on_album_create_complete);
+        bad_txn.network_error.disconnect(on_album_create_error);
 
         if (!is_running())
             return;
@@ -868,7 +894,7 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
     private void
     on_album_urls_fetch_complete(Publishing.RESTSupport.Transaction txn) {
         txn.completed.disconnect(on_album_urls_fetch_complete);
-        txn.network_error.disconnect(on_album_fetch_error);
+        txn.network_error.disconnect(on_album_urls_fetch_error);
 
         if (!is_running())
             return;
