@@ -555,10 +555,11 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
     }
 
     internal bool? get_persistent_strip_metadata() {
-        return false;
+        return host.get_config_bool("strip-metadata", false);
     }
 
     internal void set_persistent_strip_metadata(bool strip_metadata) {
+        host.set_config_bool("strip-metadata", strip_metadata);
     }
 
     // Pane installation functions
