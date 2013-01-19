@@ -659,7 +659,9 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
             warning("Could not parse UI file! Error: %s.", e.message);
             host.post_error(
                 new Spit.Publishing.PublishingError.LOCAL_FILE_ERROR(
-                    _("A file required for publishing is unavailable. Publishing to Gallery3 can't continue.")));
+                    _("A file required for publishing is " +
+                        "unavailable. Publishing to " + SERVICE_NAME +
+                        " can't continue.")));
             return;
         }
 
@@ -1347,7 +1349,9 @@ internal class CredentialsPane : Spit.Publishing.DialogPane, GLib.Object {
             warning("Could not parse UI file! Error: %s.", e.message);
             host.post_error(
                 new Spit.Publishing.PublishingError.LOCAL_FILE_ERROR(
-                    _("A file required for publishing is unavailable. Publishing to Gallery3 can't continue.")));
+                    _("A file required for publishing is " +
+                        "unavailable. Publishing to " + SERVICE_NAME +
+                        " can't continue.")));
             return;
         }
 
@@ -1446,7 +1450,8 @@ internal class CredentialsGrid : GLib.Object {
             break;
 
             case CredentialsPane.Mode.NOT_GALLERY_URL:
-                intro_message_label.set_markup("<b>%s</b>\n\n%s".printf(_("Gallery3 Site Not Found"),
+                intro_message_label.set_markup("<b>%s</b>\n\n%s".printf(
+                    _(SERVICE_NAME + " Site Not Found"),
                     NOT_GALLERY_URL_MESSAGE));
             break;
 
