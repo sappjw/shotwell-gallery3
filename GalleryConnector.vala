@@ -321,7 +321,7 @@ private class GetAlbumsTransaction : GalleryRequestTransaction {
             if (tmp_album.editable)
                 albums += tmp_album;
             else
-                debug(@"Album \"$(tmp_album.title)\" is not editable");
+                warning(@"Album \"$(tmp_album.title)\" is not editable");
         }
 
         return albums;
