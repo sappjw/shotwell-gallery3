@@ -1853,8 +1853,6 @@ internal class Uploader : Publishing.RESTSupport.BatchUploader {
     private void preprocess_publishable(
             Spit.Publishing.Publishable publishable) {
 
-        //TODO: add tags
-
         PublishingParameters.Type? media_type = null;
 
         switch (publishable.get_media_type()) {
@@ -1870,15 +1868,7 @@ internal class Uploader : Publishing.RESTSupport.BatchUploader {
 
         parameters.entity_type = media_type;
 
-        //GExiv2.Metadata publishable_metadata = new GExiv2.Metadata();
-        //try {
-        //    publishable_metadata.open_path(publishable.get_serialized_file().get_path());
-        //} catch (GLib.Error err) {
-        //    warning("couldn't read metadata from file '%s' for upload preprocessing.",
-        //        publishable.get_serialized_file().get_path());
-        //}
-
-        }
+    }
 
     protected override Publishing.RESTSupport.Transaction
             create_transaction(Spit.Publishing.Publishable publishable) {
