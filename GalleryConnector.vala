@@ -436,6 +436,43 @@ private class GalleryGetItemTagsURLsTransaction : GalleryRequestTransaction {
 
 }
 
+private class GallerySetTagRelationshipTransaction : BaseGalleryTransaction {
+
+    // Properties
+    public GallerySetTagRelationshipTransaction(Session session,
+            string item_tags_path, string tag_url, string item_url) {
+
+        if (!session.is_authenticated()) {
+            error("Not authenticated");
+        }
+        else {
+            Json.Generator entity = new Json.Generator();
+            Json.Node root_node = new Json.Node(Json.NodeType.OBJECT);
+            Json.Object obj = new Json.Object();
+
+            base(session, session.url,
+                item_tags_path,
+                Publishing.RESTSupport.HttpMethod.POST);
+            add_header("X-Gallery-Request-Key", session.key);
+            add_header("X-Gallery-Request-Method", "POST");
+
+            obj.set_string_member("tag", tag_url);
+            obj.set_string_member("item", item_url);
+            root_node.set_object(obj);
+            entity.set_root(root_node);
+
+            size_t entity_length;
+            string entity_value = entity.to_data(out entity_length);
+
+            debug("created entity: %s", entity_value);
+
+            add_argument("entity", entity_value);
+        }
+
+    }
+
+}
+
 private class GalleryAlbumCreateTransaction : BaseGalleryTransaction {
 
     // Properties
