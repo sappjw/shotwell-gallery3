@@ -540,9 +540,11 @@ private class GalleryAlbumCreateTransaction : BaseGalleryTransaction {
 private class BaseGalleryCreateTransaction : Publishing.RESTSupport.UploadTransaction {
 
     private Session session;
-    protected Json.Generator generator;
-    // Properties
-    public PublishingParameters parameters { get; private set; }
+    private Json.Generator generator;
+    private PublishingParameters parameters;
+    private string item_url;
+    private string item_path;
+    private string item_tags_path;
 
     public BaseGalleryCreateTransaction(Session session,
             PublishingParameters parameters,
@@ -585,6 +587,164 @@ private class BaseGalleryCreateTransaction : Publishing.RESTSupport.UploadTransa
         generator.set_root(root_node);
 
         add_argument("entity", generator.to_data(null));
+    }
+
+    private string get_new_item_url() {
+
+        string json_object;
+        string new_url;
+        unowned Json.Node root_node;
+        Json.Parser parser = new Json.Parser();
+
+        json_object = get_response();
+
+        if ((null == json_object) || (0 == json_object.length)) {
+            warning("No response data from %s", get_endpoint_url());
+            return "";
+        }
+
+        debug("json_object: %s", json_object);
+
+        try {
+            parser.load_from_data(json_object);
+        }
+        catch (GLib.Error e) {
+            // If this didn't work, reset the "executed" state
+            debug("ERROR: didn't load JSON data");
+            set_is_executed(false);
+            error(e.message);
+        }
+
+        root_node = parser.get_root();
+        if (root_node.is_null()) {
+            warning("Root node is null, doesn't appear to be JSON data");
+            return "";
+        }
+
+        new_url =
+            root_node.get_object().get_string_member("url");
+
+        return new_url;
+
+    }
+
+    private string strip_session_url(string url) {
+
+        // Remove the session URL from the beginning of this URL
+        string search_string = session.url + REST_PATH;
+
+        int item_loc =
+            url.last_index_of(search_string);
+
+        if (-1 == item_loc)
+            error("Did not find \"%s\" in the base of the new item " +
+                "URL \"%s\"", search_string, url);
+
+        return url.substring(item_loc + search_string.length);
+
+    }
+
+    private void do_set_tag_relationship(string tag_url)
+            throws Spit.Publishing.PublishingError {
+        GallerySetTagRelationshipTransaction tag_txn =
+            new GallerySetTagRelationshipTransaction(
+                (Session) get_parent_session(), item_tags_path,
+                tag_url, item_url);
+
+        tag_txn.execute();
+
+        debug("Response from setting tag relationship: %s",
+            tag_txn.get_response());
+    }
+
+    private string get_new_item_tags_path() {
+        GalleryGetItemTagsURLsTransaction tag_urls_txn =
+            new GalleryGetItemTagsURLsTransaction(
+                (Session) get_parent_session(), item_path);
+
+        try {
+            tag_urls_txn.execute();
+        } catch (Spit.Publishing.PublishingError err) {
+            debug("Problem getting the item_tags URL: %s",
+                err.message);
+            return "";
+        }
+
+        return tag_urls_txn.get_item_tags_path();
+    }
+
+    private string get_tag_url(string tag) {
+
+        GalleryGetTagTransaction tag_txn =
+            new GalleryGetTagTransaction(
+                (Session) get_parent_session(), tag);
+
+        try {
+            tag_txn.execute();
+        } catch (Spit.Publishing.PublishingError err) {
+            debug("Problem getting the tags URL: %s",
+                err.message);
+            return "";
+        }
+
+        return tag_txn.tag_url();
+
+    }
+
+    private void on_upload_completed()
+            throws Spit.Publishing.PublishingError {
+
+        string[] keywords;
+
+        debug("EVENT: upload completed, evaluating tags");
+
+        keywords = base.publishable.get_publishing_keywords();
+
+        // If this publishable has no tags, continue
+        if (null == keywords) {
+            debug("No keywords");
+            return;
+        }
+
+        // Get URLs from the file we just finished uploading
+        item_url = get_new_item_url();
+        item_path = strip_session_url(item_url);
+        item_tags_path = get_new_item_tags_path();
+        debug("new item path is %s", item_path);
+        debug("item_tags path is %s", item_tags_path);
+
+        // Verify these aren't empty
+        if (("" == item_path) || ("" == item_tags_path)) {
+            throw new
+                Spit.Publishing.PublishingError.COMMUNICATION_FAILED(
+                    "Could not obtain URL of uploaded item or its " +
+                    "\"item_tags\" relationship URL");
+        }
+
+        // Do the tagging here
+        foreach (string tag in keywords) {
+            debug(@"Found tag: $(tag)");
+            string new_tag_url = get_tag_url(tag);
+
+            // Next, get the item_tags URL from the newly-created
+            // item and write to it.
+            try {
+                do_set_tag_relationship(new_tag_url);
+            } catch (Spit.Publishing.PublishingError err) {
+                debug("Problem setting the relationship between tag " +
+                    "and item: %s", err.message);
+                throw err;
+            }
+        }
+
+    }
+
+    public override void execute()
+            throws Spit.Publishing.PublishingError {
+        base.execute();
+
+        // Run tagging operations here
+        on_upload_completed();
     }
 
 }
