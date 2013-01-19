@@ -1817,7 +1817,7 @@ internal class Session : Publishing.RESTSupport.Session {
     }
 
     public override bool is_authenticated() {
-        return (key != null);
+        return (null != key);
     }
 
     public void authenticate(string gallery_url, string username, string key) {
