@@ -26,7 +26,7 @@ private class ShotwellPublishingGallery3 : Object, Spit.Module {
     }
 
     public unowned string get_id() {
-        return "org.yorba.shotwell.publishing.modulegallery3";
+        return "org.yorba.shotwell.sharing.gallery3";
     }
 
     public unowned Spit.Pluggable[]? get_pluggables() {
@@ -60,7 +60,7 @@ public class Gallery3Service : Object, Spit.Pluggable, Spit.Publishing.Service {
     }
 
     public unowned string get_id() {
-        return "org.yorba.shotwell.publishing.gallery3";
+        return "publishing-gallery3";
     }
 
     public unowned string get_pluggable_name() {
