@@ -100,6 +100,7 @@ private const string SERVICE_WELCOME_MESSAGE =
 private const string DEFAULT_ALBUM_DIR = _("Shotwell");
 private const string DEFAULT_ALBUM_TITLE = _("Shotwell default directory");
 private const string CONFIG_NAME = "gallery3";
+private const string REST_PATH = "/index.php/rest";
 
 private class Album {
 
@@ -141,11 +142,12 @@ private class BaseGalleryTransaction : Publishing.RESTSupport.Transaction {
 
         if ((item_path != "") && (item_path[0] != '/')) {
             warning("Bad item path, this is a bug!");
+            warning(item_path);
             prefix = "/";
         }
 
         base.with_endpoint_url(session,
-            endpoint_url + "/index.php/rest" + prefix + item_path,
+            endpoint_url + REST_PATH + prefix + item_path,
             method);
 
         this.parser = new Json.Parser();
