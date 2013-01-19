@@ -534,7 +534,7 @@ private class GalleryAlbumCreateTransaction : BaseGalleryTransaction {
 
 }
 
-private class BaseGalleryCreateTransaction : Publishing.RESTSupport.UploadTransaction {
+private class GalleryUploadTransaction : Publishing.RESTSupport.UploadTransaction {
 
     private Session session;
     private Json.Generator generator;
@@ -543,7 +543,7 @@ private class BaseGalleryCreateTransaction : Publishing.RESTSupport.UploadTransa
     private string item_path;
     private string item_tags_path;
 
-    public BaseGalleryCreateTransaction(Session session,
+    public GalleryUploadTransaction(Session session,
             PublishingParameters parameters,
             Spit.Publishing.Publishable publishable) {
 
@@ -1874,7 +1874,7 @@ internal class Uploader : Publishing.RESTSupport.BatchUploader {
             create_transaction(Spit.Publishing.Publishable publishable) {
 
         preprocess_publishable(get_current_publishable());
-        return new BaseGalleryCreateTransaction((Session) get_session(),
+        return new GalleryUploadTransaction((Session) get_session(),
             parameters, get_current_publishable());
 
     }
