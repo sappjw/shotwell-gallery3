@@ -386,6 +386,56 @@ private class GalleryGetTagTransaction : BaseGalleryTransaction {
 
 }
 
+private class GalleryGetItemTagsURLsTransaction : GalleryRequestTransaction {
+
+    private string item_tags_path = "";
+
+    public GalleryGetItemTagsURLsTransaction(Session session, string item_url) {
+
+        base(session, item_url);
+
+    }
+
+    public string get_item_tags_path() {
+
+        unowned Json.Node root_node;
+        unowned Json.Object relationships, tags;
+
+        if ("" == item_tags_path) {
+
+            try {
+                root_node = get_root_node();
+            }
+            catch (Spit.Publishing.PublishingError e) {
+                error("Could not get root node");
+            }
+
+            relationships =
+                root_node.get_object().get_object_member("relationships");
+            tags = relationships.get_object_member("tags");
+
+            item_tags_path = tags.get_string_member("url");
+
+            // Remove the session URL from the beginning of this URL
+            Session session = get_parent_session() as Session;
+            string search_string =
+                session.url + REST_PATH;
+            int item_loc =
+                item_tags_path.last_index_of(search_string);
+
+            if (-1 == item_loc)
+                error("Did not find string");
+            item_tags_path =
+                item_tags_path.substring(item_loc + search_string.length);
+
+        }
+
+        return item_tags_path;
+
+    }
+
+}
+
 private class GalleryAlbumCreateTransaction : BaseGalleryTransaction {
 
     // Properties
