@@ -1,7 +1,7 @@
 PROGRAM := GalleryConnector
 ICON := gallery3.png
 VERSION := 0.1
-VALA_VER := 0.16
+VALA_VER := 0.18
 
 S_DIR := /usr/local/src/shotwell-0.13.1/
 S_PLUGIN_DIR := $(S_DIR)/plugins/
