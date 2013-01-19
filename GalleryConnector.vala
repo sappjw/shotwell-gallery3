@@ -761,19 +761,10 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
     private PublishingOptionsPane publishing_options_pane = null;
 
     public GalleryPublisher(Spit.Publishing.Service service,
-        Spit.Publishing.PluginHost host) {
+            Spit.Publishing.PluginHost host) {
         this.service = service;
         this.host = host;
         this.session = new Session();
-
-        // Ticket #3212 - Only display the size chooser if we're uploading a
-        // photograph, since resizing of video isn't supported.
-        //
-        // Find the media types involved. We need this to decide whether
-        // to show the size combobox or not.
-        foreach(Spit.Publishing.Publishable p in host.get_publishables()) {
-            media_type |= p.get_media_type();
-        }
     }
 
     public bool is_running() {
@@ -804,7 +795,7 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
             string url = get_gallery_url();
             string username = get_gallery_username();
 
-            if ((null == username) || (null == url))
+            if ((null == username) || (null == key) || (null == url))
                 do_show_service_welcome_pane();
             else {
                 debug("ACTION: attempting network login for user " +
@@ -900,6 +891,7 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
         try {
             fetch_trans.execute();
         } catch (Spit.Publishing.PublishingError err) {
+            // TODO: figure out what to do on an error
             //debug("Caught an error attempting to login");
             //// 403 errors are recoverable, so don't post the error to
             //// our host immediately; instead, try to recover from it
@@ -917,6 +909,7 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
         try {
             album_trans.execute();
         } catch (Spit.Publishing.PublishingError err) {
+            // TODO: figure out what to do on an error
             //debug("Caught an error attempting to fetch albums");
             // 403 errors are recoverable, so don't post the error to
             // our host immediately; instead, try to recover from it
@@ -936,9 +929,10 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
         try {
             album_trans.execute();
         } catch (Spit.Publishing.PublishingError err) {
+            // TODO: figure out what to do on an error
             // 403 errors are recoverable, so don't post the error to
             // our host immediately; instead, try to recover from it
-            on_album_fetch_error(album_trans, err);
+            //on_album_fetch_error(album_trans, err);
         }
 
     }
@@ -1005,10 +999,11 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
         host.serialize_publishables(parameters.photo_major_axis_size,
             parameters.strip_metadata);
 
-        // Serialization is a long and potentially cancellable operation, so before we use
-        // the publishables, make sure that the publishing interaction is still running. If it
-        // isn't the publishing environment may be partially torn down so do a short-circuit
-        // return
+        // Serialization is a long and potentially cancellable
+        // operation, so before we use the publishables, make sure that
+        // the publishing interaction is still running. If it isn't, the
+        // publishing environment may be partially torn down so do a
+        // short-circuit return.
         if (!is_running())
             return;
 
@@ -1101,6 +1096,7 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
             return;
 
         key = (txn as KeyFetchTransaction).get_key();
+        // TODO: fix debug statement
         if (key == null) debug("Oh noes!");
         else {
             string url = get_gallery_url();
