@@ -237,13 +237,15 @@ private class GalleryRequestTransaction : BaseGalleryTransaction {
     // GalleryRequestTransaction constructor
     //
     // item: Item URL component
-    public GalleryRequestTransaction(Session session, string item) {
+    public GalleryRequestTransaction(Session session, string item,
+            Publishing.RESTSupport.HttpMethod method =
+            Publishing.RESTSupport.HttpMethod.GET) {
 
         if (!session.is_authenticated()) {
             error("Not authenticated");
         }
         else {
-            base(session, session.url, item);
+            base(session, session.url, item, method);
             add_header("X-Gallery-Request-Key", session.key);
             add_header("X-Gallery-Request-Method", "GET");
         }
