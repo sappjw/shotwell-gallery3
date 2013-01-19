@@ -99,7 +99,6 @@ private const string SERVICE_WELCOME_MESSAGE =
     _("You are not currently logged into your Gallery.\n\nYou must have already signed up for a Gallery3 account to complete the login process.");
 private const string DEFAULT_ALBUM_DIR = _("Shotwell");
 private const string DEFAULT_ALBUM_TITLE = _("Shotwell default directory");
-private const string CONFIG_NAME = "gallery3";
 private const string REST_PATH = "/index.php/rest";
 
 private class Album {
