@@ -332,6 +332,60 @@ private class GetAlbumsTransaction : GalleryRequestTransaction {
 
 }
 
+// Class to create or get a tag URL
+private class GalleryGetTagTransaction : BaseGalleryTransaction {
+
+    public GalleryGetTagTransaction(Session session, string tag_name) {
+
+        if (!session.is_authenticated()) {
+            error("Not authenticated");
+        }
+        else {
+            Json.Generator entity = new Json.Generator();
+            Json.Node root_node = new Json.Node(Json.NodeType.OBJECT);
+            Json.Object obj = new Json.Object();
+
+            base(session, session.url,
+                "/tags",
+                Publishing.RESTSupport.HttpMethod.POST);
+            add_header("X-Gallery-Request-Key", session.key);
+            add_header("X-Gallery-Request-Method", "POST");
+
+            obj.set_string_member("name", tag_name);
+            root_node.set_object(obj);
+            entity.set_root(root_node);
+
+            size_t entity_length;
+            string entity_value = entity.to_data(out entity_length);
+
+            debug("created entity: %s", entity_value);
+
+            add_argument("entity", entity_value);
+        }
+
+    }
+
+    public string tag_url() {
+
+        unowned Json.Node root_node;
+        string url;
+
+        try {
+            root_node = get_root_node();
+        }
+        catch (Spit.Publishing.PublishingError e) {
+            error("Could not get root node");
+        }
+
+        url =
+            root_node.get_object().get_string_member("url");
+
+        return url;
+
+    }
+
+}
+
 private class GalleryAlbumCreateTransaction : BaseGalleryTransaction {
 
     // Properties
