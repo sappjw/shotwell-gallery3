@@ -208,7 +208,7 @@ private class KeyFetchTransaction : BaseGalleryTransaction {
         }
     }
 
-    public string get_key() throws Spit.Publishing.PublishingError {
+    public string get_key() {
 
         if (key != "")
             return key;
@@ -216,18 +216,15 @@ private class KeyFetchTransaction : BaseGalleryTransaction {
         key = get_response();
 
         // The returned data isn't actually a JSON object...
-        if (key == null || key == "" || key.length == 0)
-            throw new Spit.Publishing.PublishingError.MALFORMED_RESPONSE(
-                "No response data from %s", get_endpoint_url());
+        if (null == key || "" == key || 0 == key.length) {
+            warning("No response data from \"%s\"", get_endpoint_url());
+            return "";
+        }
 
         // Eliminate quotes surrounding key
         key = key[1:-1];
 
         return key;
-    }
-
-    public void forget_key() {
-        key = "";
     }
 
 }
