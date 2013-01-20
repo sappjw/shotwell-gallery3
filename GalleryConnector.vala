@@ -560,6 +560,7 @@ private class GalleryUploadTransaction :
             PublishingParameters parameters,
             Spit.Publishing.Publishable publishable) {
 
+        // TODO: this doesn't make much sense
         string album_url = (parameters.is_to_new_album()) ?
             parameters.parent_url : parameters.album_url;
 
@@ -586,11 +587,15 @@ private class GalleryUploadTransaction :
 
         // Do the JSON stuff
         generator = new Json.Generator();
+        string type = (publishable.get_media_type() ==
+            Spit.Publishing.Publisher.MediaType.VIDEO) ?
+                "video" : "photo";
 
         Json.Node root_node = new Json.Node(Json.NodeType.OBJECT);
         Json.Object obj = new Json.Object();
-        obj.set_string_member("type", parameters.entity_type.to_string());
         obj.set_string_member("name", filename);
+        obj.set_string_member("type", type);
+        obj.set_string_member("title", publishable.get_publishing_name());
 
         root_node.set_object(obj);
         generator.set_root(root_node);
@@ -1870,30 +1875,9 @@ internal class Uploader : Publishing.RESTSupport.BatchUploader {
 
     }
 
-    private void preprocess_publishable(
-            Spit.Publishing.Publishable publishable) {
-
-        PublishingParameters.Type? media_type = null;
-
-        switch (publishable.get_media_type()) {
-            case Spit.Publishing.Publisher.MediaType.PHOTO:
-                media_type = PublishingParameters.Type.PHOTO;
-                break;
-
-            case Spit.Publishing.Publisher.MediaType.VIDEO:
-                media_type = PublishingParameters.Type.MOVIE;
-                break;
-        }
-        assert(null != media_type);
-
-        parameters.entity_type = media_type;
-
-    }
-
     protected override Publishing.RESTSupport.Transaction
             create_transaction(Spit.Publishing.Publishable publishable) {
 
-        preprocess_publishable(get_current_publishable());
         return new GalleryUploadTransaction((Session) get_session(),
             parameters, get_current_publishable());
 
