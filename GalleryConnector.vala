@@ -36,26 +36,31 @@ private class ShotwellPublishingGallery3 : Object, Spit.Module {
 
 // This entry point is required for all SPIT modules.
 public Spit.Module? spit_entry_point(Spit.EntryPointParams *params) {
-    params->module_spit_interface = Spit.negotiate_interfaces(params->host_min_spit_interface,
-        params->host_max_spit_interface, Spit.CURRENT_INTERFACE);
+    params->module_spit_interface =
+        Spit.negotiate_interfaces(params->host_min_spit_interface,
+            params->host_max_spit_interface, Spit.CURRENT_INTERFACE);
 
     return (params->module_spit_interface != Spit.UNSUPPORTED_INTERFACE)
         ? new ShotwellPublishingGallery3(params->module_file) : null;
 }
 
 // The Pluggable
-public class Gallery3Service : Object, Spit.Pluggable, Spit.Publishing.Service {
+public class Gallery3Service : Object, Spit.Pluggable,
+        Spit.Publishing.Service {
     private const string ICON_FILENAME = "gallery3.png";
 
     private static Gdk.Pixbuf[] icon_pixbuf_set = null;
 
     public Gallery3Service(GLib.File resource_directory) {
         if (icon_pixbuf_set == null)
-            icon_pixbuf_set = Resources.load_icon_set(resource_directory.get_child(ICON_FILENAME));
+            icon_pixbuf_set = Resources.load_icon_set(
+                resource_directory.get_child(ICON_FILENAME));
     }
 
-    public int get_pluggable_interface(int min_host_interface, int max_host_interface) {
-        return Spit.negotiate_interfaces(min_host_interface, max_host_interface,
+    public int get_pluggable_interface(int min_host_interface,
+            int max_host_interface) {
+        return Spit.negotiate_interfaces(min_host_interface,
+            max_host_interface,
             Spit.Publishing.CURRENT_INTERFACE);
     }
 
@@ -82,7 +87,8 @@ public class Gallery3Service : Object, Spit.Pluggable, Spit.Publishing.Service {
     public void activation(bool enabled) {
     }
 
-    public Spit.Publishing.Publisher create_publisher(Spit.Publishing.PluginHost host) {
+    public Spit.Publishing.Publisher create_publisher(
+            Spit.Publishing.PluginHost host) {
         return new Publishing.Gallery3.GalleryPublisher(this, host);
     }
 
@@ -98,7 +104,8 @@ private const string SERVICE_NAME = "Gallery3";
 private const string SERVICE_WELCOME_MESSAGE =
     _("You are not currently logged into your Gallery.\n\nYou must have already signed up for a Gallery3 account to complete the login process.");
 private const string DEFAULT_ALBUM_DIR = _("Shotwell");
-private const string DEFAULT_ALBUM_TITLE = _("Shotwell default directory");
+private const string DEFAULT_ALBUM_TITLE =
+    _("Shotwell default directory");
 private const string REST_PATH = "/index.php/rest";
 
 private class Album {
@@ -127,7 +134,8 @@ private class Album {
 
 }
 
-private class BaseGalleryTransaction : Publishing.RESTSupport.Transaction {
+private class BaseGalleryTransaction :
+        Publishing.RESTSupport.Transaction {
 
     protected Json.Parser parser;
 
@@ -307,7 +315,8 @@ private class GetAlbumsTransaction : GalleryRequestTransaction {
 
     }
 
-    public Album [] get_albums() throws Spit.Publishing.PublishingError {
+    public Album [] get_albums()
+            throws Spit.Publishing.PublishingError {
 
         Album [] albums = null;
         Album tmp_album;
@@ -383,11 +392,13 @@ private class GalleryGetTagTransaction : BaseGalleryTransaction {
 
 }
 
-private class GalleryGetItemTagsURLsTransaction : GalleryRequestTransaction {
+private class GalleryGetItemTagsURLsTransaction :
+        GalleryRequestTransaction {
 
     private string item_tags_path = "";
 
-    public GalleryGetItemTagsURLsTransaction(Session session, string item_url) {
+    public GalleryGetItemTagsURLsTransaction(Session session,
+            string item_url) {
 
         base(session, item_url);
 
@@ -433,7 +444,8 @@ private class GalleryGetItemTagsURLsTransaction : GalleryRequestTransaction {
 
 }
 
-private class GallerySetTagRelationshipTransaction : BaseGalleryTransaction {
+private class GallerySetTagRelationshipTransaction :
+        BaseGalleryTransaction {
 
     // Properties
     public GallerySetTagRelationshipTransaction(Session session,
@@ -534,7 +546,8 @@ private class GalleryAlbumCreateTransaction : BaseGalleryTransaction {
 
 }
 
-private class GalleryUploadTransaction : Publishing.RESTSupport.UploadTransaction {
+private class GalleryUploadTransaction :
+        Publishing.RESTSupport.UploadTransaction {
 
     private Session session;
     private Json.Generator generator;
@@ -550,8 +563,7 @@ private class GalleryUploadTransaction : Publishing.RESTSupport.UploadTransactio
         string album_url = (parameters.is_to_new_album()) ?
             parameters.parent_url : parameters.album_url;
 
-        base.with_endpoint_url(session, publishable,
-            album_url);
+        base.with_endpoint_url(session, publishable, album_url);
 
         this.parameters = parameters;
         this.session = session;
@@ -877,7 +889,8 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
         host.install_dialog_pane(creds_pane);
     }
 
-    private void do_network_login(string url, string username, string password) {
+    private void do_network_login(string url, string username,
+            string password) {
         debug("ACTION: attempting network login for user '%s' at URL " +
             "'%s'.", username, url);
 
@@ -1055,7 +1068,8 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
         do_show_service_welcome_pane();
     }
 
-    private void on_key_fetch_error(Publishing.RESTSupport.Transaction bad_txn,
+    private void on_key_fetch_error(
+            Publishing.RESTSupport.Transaction bad_txn,
             Spit.Publishing.PublishingError err) {
         bad_txn.completed.disconnect(on_key_fetch_complete);
         bad_txn.network_error.disconnect(on_key_fetch_error);
@@ -1084,7 +1098,8 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
         }
     }
 
-    private void on_key_fetch_complete(Publishing.RESTSupport.Transaction txn) {
+    private void on_key_fetch_complete(
+            Publishing.RESTSupport.Transaction txn) {
         txn.completed.disconnect(on_key_fetch_complete);
         txn.network_error.disconnect(on_key_fetch_error);
 
@@ -1113,7 +1128,8 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
         }
     }
 
-    private void on_album_urls_fetch_error(Publishing.RESTSupport.Transaction bad_txn,
+    private void on_album_urls_fetch_error(
+            Publishing.RESTSupport.Transaction bad_txn,
             Spit.Publishing.PublishingError err) {
         bad_txn.completed.disconnect(on_album_urls_fetch_complete);
         bad_txn.network_error.disconnect(on_album_urls_fetch_error);
@@ -1134,7 +1150,8 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
         do_show_credentials_pane(CredentialsPane.Mode.NOT_GALLERY_URL);
     }
 
-    private void on_album_fetch_error(Publishing.RESTSupport.Transaction bad_txn,
+    private void on_album_fetch_error(
+            Publishing.RESTSupport.Transaction bad_txn,
             Spit.Publishing.PublishingError err) {
         bad_txn.completed.disconnect(on_album_fetch_complete);
         bad_txn.network_error.disconnect(on_album_fetch_error);
@@ -1155,7 +1172,8 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
         do_show_credentials_pane(CredentialsPane.Mode.NOT_GALLERY_URL);
     }
 
-    private void on_album_create_error(Publishing.RESTSupport.Transaction bad_txn,
+    private void on_album_create_error(
+            Publishing.RESTSupport.Transaction bad_txn,
             Spit.Publishing.PublishingError err) {
         // TODO: consider just posting the error
         bad_txn.completed.disconnect(on_album_create_complete);
@@ -1177,7 +1195,8 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
         do_show_credentials_pane(CredentialsPane.Mode.BAD_ACTION);
     }
 
-    private void on_publish_error(Publishing.RESTSupport.BatchUploader uploader,
+    private void on_publish_error(
+            Publishing.RESTSupport.BatchUploader uploader,
             Spit.Publishing.PublishingError err) {
         if (!is_running())
             return;
@@ -1190,8 +1209,8 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
         host.post_error(err);
     }
 
-    private void
-    on_album_urls_fetch_complete(Publishing.RESTSupport.Transaction txn) {
+    private void on_album_urls_fetch_complete(
+            Publishing.RESTSupport.Transaction txn) {
         txn.completed.disconnect(on_album_urls_fetch_complete);
         txn.network_error.disconnect(on_album_urls_fetch_error);
 
@@ -1213,8 +1232,8 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
         do_fetch_albums(album_urls);
     }
 
-    private void
-    on_album_fetch_complete(Publishing.RESTSupport.Transaction txn) {
+    private void on_album_fetch_complete(
+            Publishing.RESTSupport.Transaction txn) {
         txn.completed.disconnect(on_album_fetch_complete);
         txn.network_error.disconnect(on_album_fetch_error);
 
@@ -1235,8 +1254,8 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
         do_show_publishing_options_pane(url, username);
     }
 
-    private void
-    on_album_create_complete(Publishing.RESTSupport.Transaction txn) {
+    private void on_album_create_complete(
+            Publishing.RESTSupport.Transaction txn) {
         txn.completed.disconnect(on_album_create_complete);
         txn.network_error.disconnect(on_album_create_error);
 
@@ -1273,8 +1292,8 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
 
     }
 
-    private void
-    on_publish_complete(Publishing.RESTSupport.BatchUploader uploader,
+    private void on_publish_complete(
+            Publishing.RESTSupport.BatchUploader uploader,
             int num_published) {
         uploader.upload_complete.disconnect(on_publish_complete);
         uploader.upload_error.disconnect(on_publish_error);
@@ -1442,7 +1461,8 @@ internal class PublishingOptionsPane : Spit.Publishing.DialogPane, GLib.Object {
 
     public void installed() {
         int default_album_id = -1;
-        string last_album = host.get_config_string(LAST_ALBUM_CONFIG_KEY, "");
+        string last_album =
+            host.get_config_string(LAST_ALBUM_CONFIG_KEY, "");
         for (int i = 0; i < albums.length; i++) {
             existing_albums_combo.append_text(albums[i].title);
             if ((albums[i].title == last_album) ||
