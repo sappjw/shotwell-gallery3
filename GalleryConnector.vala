@@ -1,4 +1,4 @@
-/* Copyright 2012 Joe Sapp nixphoeni@gentoo.org
+/* Copyright 2012-2013 Joe Sapp nixphoeni@gentoo.org
  *
  * This software is licensed under the GNU LGPL (version 2.1 or later).
  * See the COPYING file in this distribution.
