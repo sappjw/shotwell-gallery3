@@ -1523,28 +1523,6 @@ internal class PublishingOptionsPane : Spit.Publishing.DialogPane, GLib.Object {
 
 internal class PublishingParameters {
 
-    public enum Type {
-        ALBUM,
-        PHOTO,
-        MOVIE;
-
-        public string to_string() {
-            switch (this) {
-                case Type.ALBUM:
-                    return "album";
-
-                case Type.PHOTO:
-                    return "photo";
-
-                case Type.MOVIE:
-                    return "movie";
-
-                default:
-                    error("unrecognized PublishingParameters.Type enumeration value");
-            }
-        }
-    }
-
     // Private variables for properties
     private string _album_name = "";
     private string _album_title = "";
@@ -1583,7 +1561,6 @@ internal class PublishingParameters {
         }
         set { _parent_url = value; }
     }
-    public Type entity_type { get; set; default = Type.ALBUM; }
     public string entity_title { get; private set; default = ""; }
     public int photo_major_axis_size { get; private set; default = 0; }
     public bool strip_metadata { get; set; default = false; }
@@ -1595,13 +1572,11 @@ internal class PublishingParameters {
             string new_parent_url) {
         this.album_name = new_album_title.delimit(" ", '-');
         this.album_title = new_album_title;
-        //this.entity_type = type_;
         this.parent_url = new_parent_url;
     }
 
     public PublishingParameters.to_existing_album(string album_url) {
         this.album_url = album_url;
-        //this.entity_type = type_;
     }
 
     public bool is_to_new_album() {
