@@ -5,7 +5,7 @@
  */
 
 
-extern const string _VERSION;
+static const string _VERSION = "0.1";
 
 // This module's Spit.Module
 private class ShotwellPublishingGallery3 : Object, Spit.Module {
@@ -74,7 +74,7 @@ public class Gallery3Service : Object, Spit.Pluggable,
 
     public void get_info(out Spit.PluggableInfo info) {
         info.authors = "Joe Sapp";
-        info.copyright = "2012 Joe Sapp";
+        info.copyright = "2012-2013 Joe Sapp";
         info.translators = Resources.TRANSLATORS;
         info.version = _VERSION;
         //info.website_name = Resources.WEBSITE_NAME;
