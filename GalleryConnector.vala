@@ -426,15 +426,8 @@ private class GalleryGetItemTagsURLsTransaction :
 
             // Remove the session URL from the beginning of this URL
             Session session = get_parent_session() as Session;
-            string search_string =
-                session.url + REST_PATH;
-            int item_loc =
-                item_tags_path.last_index_of(search_string);
-
-            if (-1 == item_loc)
-                error("Did not find string");
             item_tags_path =
-                item_tags_path.substring(item_loc + search_string.length);
+                strip_session_url(session.url, item_tags_path);
 
         }
 
@@ -642,22 +635,6 @@ private class GalleryUploadTransaction :
 
     }
 
-    private string strip_session_url(string url) {
-
-        // Remove the session URL from the beginning of this URL
-        string search_string = session.url + REST_PATH;
-
-        int item_loc =
-            url.last_index_of(search_string);
-
-        if (-1 == item_loc)
-            error("Did not find \"%s\" in the base of the new item " +
-                "URL \"%s\"", search_string, url);
-
-        return url.substring(item_loc + search_string.length);
-
-    }
-
     private void do_set_tag_relationship(string tag_url)
             throws Spit.Publishing.PublishingError {
         GallerySetTagRelationshipTransaction tag_txn =
@@ -722,7 +699,7 @@ private class GalleryUploadTransaction :
 
         // Get URLs from the file we just finished uploading
         item_url = get_new_item_url();
-        item_path = strip_session_url(item_url);
+        item_path = strip_session_url(session.url, item_url);
         item_tags_path = get_new_item_tags_path();
         debug("new item path is %s", item_path);
         debug("item_tags path is %s", item_tags_path);
@@ -1857,6 +1834,24 @@ internal class Uploader : Publishing.RESTSupport.BatchUploader {
             parameters, get_current_publishable());
 
     }
+
+}
+
+private string strip_session_url(string session_url, string url) {
+
+    // Remove the session URL from the beginning of this URL
+    string search_string = session_url + REST_PATH;
+
+    debug("Searching for \"%s\" in \"%s\"",
+        search_string, url);
+    int item_loc =
+        url.last_index_of(search_string);
+
+    if (-1 == item_loc)
+        error("Did not find \"%s\" in the base of the new item " +
+            "URL \"%s\"", search_string, url);
+
+    return url.substring(item_loc + search_string.length);
 
 }
 
