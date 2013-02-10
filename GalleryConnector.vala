@@ -1009,8 +1009,8 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
         set_persistent_strip_metadata(parameters.strip_metadata);
         host.set_service_locked(true);
         progress_reporter =
-        host.serialize_publishables(parameters.photo_major_axis_size,
-            parameters.strip_metadata);
+            host.serialize_publishables(parameters.photo_major_axis_size,
+                parameters.strip_metadata);
 
         // Serialization is a long and potentially cancellable
         // operation, so before we use the publishables, make sure that
@@ -1226,9 +1226,6 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
         string [] album_urls =
             (txn as GetAlbumURLsTransaction).get_album_urls();
 
-        for (int i = 0; i <= album_urls.length - 1; i++)
-            debug("%s\n", album_urls[i]);
-
         do_fetch_albums(album_urls);
     }
 
@@ -1382,7 +1379,7 @@ internal class PublishingOptionsPane : Spit.Publishing.DialogPane, GLib.Object {
         this.host = host;
 
         this.builder = builder;
-        assert(builder != null);
+        assert(null != builder);
         assert(builder.get_objects().length() > 0);
 
         // pull in all widgets from builder
