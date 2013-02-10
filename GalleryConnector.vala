@@ -116,6 +116,7 @@ private class Album {
     public string summary { get; private set; default = ""; }
     public string parentname { get; private set; default = ""; }
     public string url { get; private set; default = ""; }
+    public string path { get; private set; default = ""; }
     public bool editable { get; private set; default = false; }
 
     // Each element is a collection
@@ -129,6 +130,17 @@ private class Album {
         parentname = entity.get_string_member("parent");
         url = collection.get_string_member("url");
         editable = entity.get_boolean_member("can_edit");
+
+        // Get the path from the last two elements of the URL.
+        // This should always be "/item/#" where "#" is a number.
+        int path_idx = url.last_index_of(REST_PATH);
+
+        if (-1 == path_idx)
+            error("Did not find \"%s\" in the base of the album " +
+                "URL \"%s\"", REST_PATH, url);
+
+        path_idx += REST_PATH.length;
+        path = url.substring(path_idx);
 
     }
 
