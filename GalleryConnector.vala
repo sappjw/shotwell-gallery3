@@ -760,8 +760,6 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
     private Session session = null;
     private bool running = false;
     private Album[] albums = null;
-    private Spit.Publishing.Publisher.MediaType media_type =
-      Spit.Publishing.Publisher.MediaType.NONE;
     private string key = null;
 
     private PublishingOptionsPane publishing_options_pane = null;
