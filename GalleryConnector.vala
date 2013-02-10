@@ -157,16 +157,14 @@ private class BaseGalleryTransaction :
             Publishing.RESTSupport.HttpMethod method =
             Publishing.RESTSupport.HttpMethod.POST) {
 
-        string prefix = "";
-
+        // TODO: eventually we can remove this
         if ((item_path != "") && (item_path[0] != '/')) {
             warning("Bad item path, this is a bug!");
-            warning(item_path);
-            prefix = "/";
+            error(item_path);
         }
 
         base.with_endpoint_url(session,
-            endpoint_url + REST_PATH + prefix + item_path,
+            endpoint_url + REST_PATH + item_path,
             method);
 
         this.parser = new Json.Parser();
@@ -273,12 +271,16 @@ private class GalleryRequestTransaction : BaseGalleryTransaction {
 
 private class GetAlbumURLsTransaction : GalleryRequestTransaction {
 
+    private string? session_url;
+
     //TODO: handle > 100 items
     public GetAlbumURLsTransaction(Session session) {
 
         base(session, "/item/1");
         add_argument("type", "album");
         add_argument("scope", "all");
+
+        session_url = session.url;
 
     }
 
@@ -491,6 +493,8 @@ private class GalleryAlbumCreateTransaction : BaseGalleryTransaction {
 
     // Properties
     public PublishingParameters parameters { get; private set; }
+    // Private variables
+    private string? session_url;
 
     // GalleryAlbumCreateTransaction constructor
     //
@@ -506,12 +510,12 @@ private class GalleryAlbumCreateTransaction : BaseGalleryTransaction {
             Json.Node root_node = new Json.Node(Json.NodeType.OBJECT);
             Json.Object obj = new Json.Object();
 
-            base(session, session.url,
-                parameters.parent_url,
+            base(session, session.url, "/item/1",
                 Publishing.RESTSupport.HttpMethod.POST);
             add_header("X-Gallery-Request-Key", session.key);
             add_header("X-Gallery-Request-Method", "POST");
 
+            this.session_url = session.url;
             this.parameters = parameters;
 
             obj.set_string_member("type", "album");
@@ -530,10 +534,10 @@ private class GalleryAlbumCreateTransaction : BaseGalleryTransaction {
 
     }
 
-    public string get_new_album_url() {
+    public string get_new_album_path() {
 
         unowned Json.Node root_node;
-        string new_url;
+        string new_path;
 
         try {
             root_node = get_root_node();
@@ -542,10 +546,11 @@ private class GalleryAlbumCreateTransaction : BaseGalleryTransaction {
             error("Could not get root node");
         }
 
-        new_url =
+        new_path =
             root_node.get_object().get_string_member("url");
+        new_path = strip_session_url(this.session_url, new_path);
 
-        return new_url;
+        return new_path;
 
     }
 
@@ -565,11 +570,14 @@ private class GalleryUploadTransaction :
             PublishingParameters parameters,
             Spit.Publishing.Publishable publishable) {
 
-        // TODO: this doesn't make much sense
-        string album_url = (parameters.is_to_new_album()) ?
-            parameters.parent_url : parameters.album_url;
+        // TODO: eventually we can remove this
+        if (parameters.album_path[0] != '/') {
+            warning("Bad upload item path, this is a bug!");
+            error(parameters.album_path);
+        }
 
-        base.with_endpoint_url(session, publishable, album_url);
+        base.with_endpoint_url(session, publishable,
+            session.url + REST_PATH + parameters.album_path);
 
         this.parameters = parameters;
         this.session = session;
@@ -1260,11 +1268,11 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
 
         PublishingParameters new_params =
             (txn as GalleryAlbumCreateTransaction).parameters;
-        new_params.parent_url =
-            (txn as GalleryAlbumCreateTransaction).get_new_album_url();
+        new_params.album_path =
+            (txn as GalleryAlbumCreateTransaction).get_new_album_path();
 
         debug("EVENT: user has created an album at \"%s\".",
-            new_params.parent_url);
+            new_params.album_path);
 
         do_publish(new_params);
     }
@@ -1408,8 +1416,7 @@ internal class PublishingOptionsPane : Spit.Publishing.DialogPane, GLib.Object {
             album_name = new_album_entry.get_text();
             host.set_config_string(LAST_ALBUM_CONFIG_KEY, album_name);
             PublishingParameters param =
-                new PublishingParameters.to_new_album(album_name,
-                    "/item/1");
+                new PublishingParameters.to_new_album(album_name);
             debug("Trying to publish to \"%s\"", album_name);
             publish(param,
                 strip_metadata_check.get_active());
@@ -1417,8 +1424,9 @@ internal class PublishingOptionsPane : Spit.Publishing.DialogPane, GLib.Object {
             album_name =
                 albums[existing_albums_combo.get_active()].title;
             host.set_config_string(LAST_ALBUM_CONFIG_KEY, album_name);
-            string album_url = albums[existing_albums_combo.get_active()].url;
-            publish(new PublishingParameters.to_existing_album(album_url),
+            string album_path =
+                albums[existing_albums_combo.get_active()].path;
+            publish(new PublishingParameters.to_existing_album(album_path),
                 strip_metadata_check.get_active());
         }
     }
@@ -1513,8 +1521,7 @@ internal class PublishingParameters {
     // Private variables for properties
     private string _album_name = "";
     private string _album_title = "";
-    private string _album_url = "";
-    private string _parent_url = "";
+    private string _album_path = "";
 
     // Properties
     public string album_name {
@@ -1533,20 +1540,12 @@ internal class PublishingParameters {
         }
         private set { _album_title = value; }
     }
-    public string album_url {
+    public string album_path {
         get {
-            debug("getting album_url");
-            return _album_url;
+            debug("getting album_path");
+            return _album_path;
         }
-        private set { _album_url = value; }
-    }
-    public string parent_url {
-        get {
-            assert(is_to_new_album());
-            debug("getting parent_url");
-            return _parent_url;
-        }
-        set { _parent_url = value; }
+        set { _album_path = value; }
     }
     public string entity_title { get; private set; default = ""; }
     public int photo_major_axis_size { get; private set; default = 0; }
@@ -1555,15 +1554,14 @@ internal class PublishingParameters {
     private PublishingParameters() {
     }
 
-    public PublishingParameters.to_new_album(string new_album_title,
-            string new_parent_url) {
-        this.album_name = new_album_title.delimit(" ", '-');
-        this.album_title = new_album_title;
-        this.parent_url = new_parent_url;
+    public PublishingParameters.to_new_album(string album_title) {
+        this.album_name = album_title.delimit(" ", '-');
+        //this.album_name = this.album_name.delimit("\"\'", '');
+        this.album_title = album_title;
     }
 
-    public PublishingParameters.to_existing_album(string album_url) {
-        this.album_url = album_url;
+    public PublishingParameters.to_existing_album(string album_path) {
+        this.album_path = album_path;
     }
 
     public bool is_to_new_album() {
@@ -1572,13 +1570,10 @@ internal class PublishingParameters {
 
     // converts a publish-to-new-album parameters object into a publish-to-existing-album
     // parameters object
-    public void convert(string album_url) {
+    public void convert() {
         assert(is_to_new_album());
 
-        // debug("converting publishing parameters: album '%s' has url '%s'.", album_name, album_url);
-
-        album_name = null;
-        this.album_url = album_url;
+        album_name = "";
     }
 }
 
