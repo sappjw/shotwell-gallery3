@@ -30,7 +30,7 @@
         <property name="can_focus">False</property>
         <property name="xalign">0.30000001192092896</property>
         <property name="ypad">16</property>
-        <property name="label" translatable="yes">'Publishing to $url as $username)' (populated in application code)</property>
+        <property name="label" translatable="yes">'Publishing to $url as $username' (populated in application code)</property>
       </object>
       <packing>
         <property name="left_attach">0</property>
@@ -165,6 +165,9 @@
             <property name="related_action">publish_action</property>
             <property name="visible">True</property>
             <property name="can_focus">True</property>
+            <property name="is_focus">True</property>
+            <property name="can_default">True</property>
+            <property name="has_default">True</property>
             <property name="receives_default">True</property>
           </object>
           <packing>
