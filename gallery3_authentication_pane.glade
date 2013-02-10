@@ -191,6 +191,7 @@
         <property name="can_focus">True</property>
         <property name="invisible_char">●</property>
         <property name="activates_default">True</property>
+        <property name="width_chars">33</property>
       </object>
       <packing>
         <property name="left_attach">3</property>
