@@ -133,14 +133,7 @@ private class Album {
 
         // Get the path from the last two elements of the URL.
         // This should always be "/item/#" where "#" is a number.
-        int path_idx = url.last_index_of(REST_PATH);
-
-        if (-1 == path_idx)
-            error("Did not find \"%s\" in the base of the album " +
-                "URL \"%s\"", REST_PATH, url);
-
-        path_idx += REST_PATH.length;
-        path = url.substring(path_idx);
+        path = strip_session_url(url);
 
     }
 
@@ -440,8 +433,7 @@ private class GalleryGetItemTagsURLsTransaction :
 
             // Remove the session URL from the beginning of this URL
             Session session = get_parent_session() as Session;
-            item_tags_path =
-                strip_session_url(session.url, item_tags_path);
+            item_tags_path = strip_session_url(item_tags_path);
 
         }
 
@@ -548,7 +540,7 @@ private class GalleryAlbumCreateTransaction : BaseGalleryTransaction {
 
         new_path =
             root_node.get_object().get_string_member("url");
-        new_path = strip_session_url(this.session_url, new_path);
+        new_path = strip_session_url(new_path);
 
         return new_path;
 
@@ -719,7 +711,7 @@ private class GalleryUploadTransaction :
 
         // Get URLs from the file we just finished uploading
         item_url = get_new_item_url();
-        item_path = strip_session_url(session.url, item_url);
+        item_path = strip_session_url(item_url);
         item_tags_path = get_new_item_tags_path();
         debug("new item path is %s", item_path);
         debug("item_tags path is %s", item_tags_path);
@@ -1839,21 +1831,19 @@ internal class Uploader : Publishing.RESTSupport.BatchUploader {
 
 }
 
-private string strip_session_url(string session_url, string url) {
+private string strip_session_url(string url) {
 
     // Remove the session URL from the beginning of this URL
-    string search_string = session_url + REST_PATH;
-
     debug("Searching for \"%s\" in \"%s\"",
-        search_string, url);
+        REST_PATH, url);
     int item_loc =
-        url.last_index_of(search_string);
+        url.last_index_of(REST_PATH);
 
     if (-1 == item_loc)
         error("Did not find \"%s\" in the base of the new item " +
-            "URL \"%s\"", search_string, url);
+            "URL \"%s\"", REST_PATH, url);
 
-    return url.substring(item_loc + search_string.length);
+    return url.substring(item_loc + REST_PATH.length);
 
 }
 
