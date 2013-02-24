@@ -194,14 +194,12 @@ private class BaseGalleryTransaction :
             throw new Spit.Publishing.PublishingError.MALFORMED_RESPONSE(
                 "No response data from %s", get_endpoint_url());
 
-        debug("json_object: %s", json_object);
-
         try {
             this.parser.load_from_data(json_object);
         }
         catch (GLib.Error e) {
             // If this didn't work, reset the "executed" state
-            debug("ERROR: didn't load JSON data");
+            warning("ERROR: didn't load JSON data");
             set_is_executed(false);
             throw new Spit.Publishing.PublishingError.PROTOCOL_ERROR(e.message);
         }
@@ -226,15 +224,9 @@ private class KeyFetchTransaction : BaseGalleryTransaction {
     // url: Base gallery URL
     public KeyFetchTransaction(Session session, string url,
             string username, string password) {
-        // TODO: check if URL is properly formed...?
-        if (url[0:4] == "http") {
-            base(session, url);
-            add_argument("user", username);
-            add_argument("password", password);
-        }
-        else {
-            debug("ERROR: bad URL");
-        }
+        base(session, url);
+        add_argument("user", username);
+        add_argument("password", password);
     }
 
     public string get_key() {
@@ -528,14 +520,13 @@ private class GalleryAlbumCreateTransaction : BaseGalleryTransaction {
             this.session_url = session.url;
             this.parameters = parameters;
 
-            obj.set_string_member("type", "album");
             obj.set_string_member("name", parameters.album_name);
+            obj.set_string_member("type", "album");
             obj.set_string_member("title", parameters.album_title);
             root_node.set_object(obj);
             entity.set_root(root_node);
 
-            size_t entity_length;
-            string entity_value = entity.to_data(out entity_length);
+            string entity_value = entity.to_data(null);
 
             debug("created entity: %s", entity_value);
 
@@ -647,7 +638,8 @@ private class GalleryUploadTransaction :
         }
         catch (GLib.Error e) {
             // If this didn't work, reset the "executed" state
-            debug("ERROR: didn't load JSON data");
+            // TODO: can we recover from this?
+            warning("ERROR: didn't load JSON data");
             set_is_executed(false);
             error(e.message);
         }
@@ -723,7 +715,7 @@ private class GalleryUploadTransaction :
 
         // If this publishable has no tags, continue
         if (null == keywords) {
-            debug("No keywords");
+            debug("No tags");
             return;
         }
 
@@ -1257,7 +1249,6 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
     private void on_album_create_error(
             Publishing.RESTSupport.Transaction bad_txn,
             Spit.Publishing.PublishingError err) {
-        // TODO: consider just posting the error
         bad_txn.completed.disconnect(on_album_create_complete);
         bad_txn.network_error.disconnect(on_album_create_error);
 
@@ -1576,7 +1567,6 @@ internal class PublishingParameters {
     public string album_title {
         get {
             assert(is_to_new_album());
-            debug("getting album_title");
             return _album_title;
         }
         private set { _album_title = value; }
