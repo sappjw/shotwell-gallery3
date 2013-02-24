@@ -1176,6 +1176,26 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
         }
     }
 
+    private void on_album_urls_fetch_complete(
+            Publishing.RESTSupport.Transaction txn) {
+        txn.completed.disconnect(on_album_urls_fetch_complete);
+        txn.network_error.disconnect(on_album_urls_fetch_error);
+
+        if (!is_running())
+            return;
+
+        // ignore these events if the session is not auth'd
+        if (!session.is_authenticated())
+            return;
+
+        debug("EVENT: user has retrieved all album URLs.");
+
+        string [] album_urls =
+            (txn as GetAlbumURLsTransaction).get_album_urls();
+
+        do_fetch_albums(album_urls);
+    }
+
     private void on_album_fetch_error(
             Publishing.RESTSupport.Transaction bad_txn,
             Spit.Publishing.PublishingError err) {
@@ -1210,6 +1230,28 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
         else {
             host.post_error(err);
         }
+    }
+
+    private void on_album_fetch_complete(
+            Publishing.RESTSupport.Transaction txn) {
+        txn.completed.disconnect(on_album_fetch_complete);
+        txn.network_error.disconnect(on_album_fetch_error);
+
+        if (!is_running())
+            return;
+
+        // ignore these events if the session is not auth'd
+        if (!session.is_authenticated())
+            return;
+
+        debug("EVENT: user is attempting to populate the album list.");
+
+        albums = (txn as GetAlbumsTransaction).get_albums();
+
+        string url = session.url;
+        string username = session.username;
+
+        do_show_publishing_options_pane(url, username);
     }
 
     private void on_album_create_error(
@@ -1249,62 +1291,6 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
         }
     }
 
-    private void on_publish_error(
-            Publishing.RESTSupport.BatchUploader uploader,
-            Spit.Publishing.PublishingError err) {
-        if (!is_running())
-            return;
-
-        debug("EVENT: uploader reports upload error = '%s'.", err.message);
-
-        uploader.upload_complete.disconnect(on_publish_complete);
-        uploader.upload_error.disconnect(on_publish_error);
-
-        host.post_error(err);
-    }
-
-    private void on_album_urls_fetch_complete(
-            Publishing.RESTSupport.Transaction txn) {
-        txn.completed.disconnect(on_album_urls_fetch_complete);
-        txn.network_error.disconnect(on_album_urls_fetch_error);
-
-        if (!is_running())
-            return;
-
-        // ignore these events if the session is not auth'd
-        if (!session.is_authenticated())
-            return;
-
-        debug("EVENT: user has retrieved all album URLs.");
-
-        string [] album_urls =
-            (txn as GetAlbumURLsTransaction).get_album_urls();
-
-        do_fetch_albums(album_urls);
-    }
-
-    private void on_album_fetch_complete(
-            Publishing.RESTSupport.Transaction txn) {
-        txn.completed.disconnect(on_album_fetch_complete);
-        txn.network_error.disconnect(on_album_fetch_error);
-
-        if (!is_running())
-            return;
-
-        // ignore these events if the session is not auth'd
-        if (!session.is_authenticated())
-            return;
-
-        debug("EVENT: user is attempting to populate the album list.");
-
-        albums = (txn as GetAlbumsTransaction).get_albums();
-
-        string url = session.url;
-        string username = session.username;
-
-        do_show_publishing_options_pane(url, username);
-    }
-
     private void on_album_create_complete(
             Publishing.RESTSupport.Transaction txn) {
         txn.completed.disconnect(on_album_create_complete);
@@ -1326,6 +1312,20 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
             new_params.album_path);
 
         do_publish(new_params);
+    }
+
+    private void on_publish_error(
+            Publishing.RESTSupport.BatchUploader uploader,
+            Spit.Publishing.PublishingError err) {
+        if (!is_running())
+            return;
+
+        debug("EVENT: uploader reports upload error = '%s'.", err.message);
+
+        uploader.upload_complete.disconnect(on_publish_complete);
+        uploader.upload_error.disconnect(on_publish_error);
+
+        host.post_error(err);
     }
 
     private void on_upload_status_updated(int file_number,
