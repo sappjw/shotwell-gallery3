@@ -1614,8 +1614,7 @@ internal class CredentialsPane : Spit.Publishing.DialogPane, GLib.Object {
     public enum Mode {
         INTRO,
         FAILED_RETRY,
-        NOT_GALLERY_URL,
-        BAD_ACTION;
+        NOT_GALLERY_URL;
 
         public string to_string() {
             switch (this) {
@@ -1627,9 +1626,6 @@ internal class CredentialsPane : Spit.Publishing.DialogPane, GLib.Object {
 
                 case Mode.NOT_GALLERY_URL:
                     return "NOT_GALLERY_URL";
-
-                case Mode.BAD_ACTION:
-                    return "BAD_ACTION";
 
                 default:
                     error("unrecognized CredentialsPane.Mode enumeration value");
@@ -1702,10 +1698,9 @@ internal class CredentialsPane : Spit.Publishing.DialogPane, GLib.Object {
 }
 
 internal class CredentialsGrid : GLib.Object {
-    private const string INTRO_MESSAGE = _("Enter the URL for your Gallery3 site and the username and password for your Gallery3 account.");
-    private const string FAILED_RETRY_MESSAGE = _("Your Gallery didn't recognize the username and password you entered. To try again, re-enter your username and password below.");
+    private const string INTRO_MESSAGE = _("Enter the URL for your Gallery3 site and the username and password (or API key) for your Gallery3 account.");
+    private const string FAILED_RETRY_MESSAGE = _("The username and password or API key were incorrect. To try again, re-enter your username and password below.");
     private const string NOT_GALLERY_URL_MESSAGE = _("The URL entered does not appear to be the main directory of a Gallery3 instance. Please make sure you typed it correctly and it does not have any trailing components (e.g., index.php).");
-    private const string BAD_ACTION_MESSAGE = _("The last action attempted on your Gallery failed. Please make sure the credentials for your Gallery are correct. You may also want to check to see if albums were created or media were partially uploaded.");
 
     private weak Spit.Publishing.PluginHost host = null;
     private Gtk.Builder builder = null;
@@ -1766,9 +1761,8 @@ internal class CredentialsGrid : GLib.Object {
                     NOT_GALLERY_URL_MESSAGE));
             break;
 
-            case CredentialsPane.Mode.BAD_ACTION:
-                intro_message_label.set_markup("<b>%s</b>\n\n%s".printf(_("Action Failed"), BAD_ACTION_MESSAGE));
-            break;
+            default:
+                error("Invalid CredentialsPane mode");
         }
 
         // Gallery URL
