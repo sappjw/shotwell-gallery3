@@ -594,7 +594,7 @@ private class GalleryUploadTransaction :
         generator = new Json.Generator();
         string type = (publishable.get_media_type() ==
             Spit.Publishing.Publisher.MediaType.VIDEO) ?
-                "video" : "photo";
+                "movie" : "photo";
 
         Json.Node root_node = new Json.Node(Json.NodeType.OBJECT);
         Json.Object obj = new Json.Object();
