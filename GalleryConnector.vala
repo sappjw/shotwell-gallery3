@@ -1552,19 +1552,9 @@ internal class PublishingOptionsPane : Spit.Publishing.DialogPane, GLib.Object {
 internal class PublishingParameters {
 
     // Private variables for properties
-    private string _album_name = "";
     private string _album_title = "";
-    private string _album_path = "";
 
     // Properties
-    public string album_name {
-        get {
-            //assert(is_to_new_album());
-            debug("getting album_name");
-            return _album_name;
-        }
-        private set { _album_name = value; }
-    }
     public string album_title {
         get {
             assert(is_to_new_album());
@@ -1573,13 +1563,8 @@ internal class PublishingParameters {
         }
         private set { _album_title = value; }
     }
-    public string album_path {
-        get {
-            debug("getting album_path");
-            return _album_path;
-        }
-        set { _album_path = value; }
-    }
+    public string album_name { get; private set; default = ""; }
+    public string album_path { get; set; default = ""; }
     public string entity_title { get; private set; default = ""; }
     public int photo_major_axis_size { get; private set; default = 0; }
     public bool strip_metadata { get; set; default = false; }
