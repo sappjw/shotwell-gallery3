@@ -896,11 +896,10 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
         try {
             fetch_trans.execute();
         } catch (Spit.Publishing.PublishingError err) {
-            // TODO: figure out what to do on an error
-            //debug("Caught an error attempting to login");
-            //// 403 errors are recoverable, so don't post the error to
-            //// our host immediately; instead, try to recover from it
-            //on_key_fetch_error(fetch_trans, err);
+            debug("Caught an error attempting to login");
+            // 403 errors may be recoverable, so don't post the error to
+            // our host immediately; instead, try to recover from it
+            on_key_fetch_error(fetch_trans, err);
         }
     }
 
@@ -914,12 +913,10 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
         try {
             album_trans.execute();
         } catch (Spit.Publishing.PublishingError err) {
-            // TODO: figure out what to do on an error
-            //debug("Caught an error attempting to fetch albums");
-            // 403 errors are recoverable, so don't post the error to
+            debug("Caught an error attempting to fetch albums");
+            // 403 errors may be recoverable, so don't post the error to
             // our host immediately; instead, try to recover from it
-            //on_album_urls_fetch_error(album_trans, err);
-            //host.post_error(err);
+            on_album_urls_fetch_error(album_trans, err);
         }
 
     }
@@ -934,10 +931,9 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
         try {
             album_trans.execute();
         } catch (Spit.Publishing.PublishingError err) {
-            // TODO: figure out what to do on an error
-            // 403 errors are recoverable, so don't post the error to
+            // 403 errors may be recoverable, so don't post the error to
             // our host immediately; instead, try to recover from it
-            //on_album_fetch_error(album_trans, err);
+            on_album_fetch_error(album_trans, err);
         }
 
     }
@@ -987,7 +983,7 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
         try {
             album_trans.execute();
         } catch (Spit.Publishing.PublishingError err) {
-            // 403 errors are recoverable, so don't post the error to
+            // 403 errors may be recoverable, so don't post the error to
             // our host immediately; instead, try to recover from it
             on_album_create_error(album_trans, err);
         }
@@ -1083,7 +1079,13 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
         // 403 though, we can't recover from it, so just post the error
         // to the user
         if (bad_txn.get_status_code() == 403) {
+            // TODO: can we give more detail on the problem?
             do_show_credentials_pane(CredentialsPane.Mode.FAILED_RETRY);
+        }
+        else if (bad_txn.get_status_code() == 400) {
+            // This might not be a Gallery URL
+            // TODO: can we give more detail on the problem?
+            do_show_credentials_pane(CredentialsPane.Mode.NOT_GALLERY_URL);
         }
         else {
             host.post_error(err);
@@ -1103,8 +1105,8 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
             return;
 
         key = (txn as KeyFetchTransaction).get_key();
-        // TODO: fix debug statement
-        if (key == null) debug("Oh noes!");
+
+        if (key == null) error("key doesn\'t exist");
         else {
             string url = get_gallery_url();
             string username = get_gallery_username();
@@ -1137,9 +1139,23 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
             "failed; response = \'%s\'.",
             bad_txn.get_response());
 
-        // Maybe the saved credentials are bad, so have the user try
-        // again
-        do_show_credentials_pane(CredentialsPane.Mode.NOT_GALLERY_URL);
+        // HTTP error 403 is invalid authentication -- if we get this
+        // error during key fetch then we can just show the login screen
+        // again with a retry message; if we get any error other than
+        // 403 though, we can't recover from it, so just post the error
+        // to the user
+        if (bad_txn.get_status_code() == 403) {
+            // TODO: can we give more detail on the problem?
+            do_show_credentials_pane(CredentialsPane.Mode.FAILED_RETRY);
+        }
+        else if (bad_txn.get_status_code() == 400) {
+            // This might not be a Gallery URL
+            // TODO: can we give more detail on the problem?
+            do_show_credentials_pane(CredentialsPane.Mode.NOT_GALLERY_URL);
+        }
+        else {
+            host.post_error(err);
+        }
     }
 
     private void on_album_fetch_error(
@@ -1159,9 +1175,23 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
             "failed; response = \'%s\'.",
             bad_txn.get_response());
 
-        // Maybe the saved credentials are bad, so have the user try
-        // again
-        do_show_credentials_pane(CredentialsPane.Mode.NOT_GALLERY_URL);
+        // HTTP error 403 is invalid authentication -- if we get this
+        // error during key fetch then we can just show the login screen
+        // again with a retry message; if we get any error other than
+        // 403 though, we can't recover from it, so just post the error
+        // to the user
+        if (bad_txn.get_status_code() == 403) {
+            // TODO: can we give more detail on the problem?
+            do_show_credentials_pane(CredentialsPane.Mode.FAILED_RETRY);
+        }
+        else if (bad_txn.get_status_code() == 400) {
+            // This might not be a Gallery URL
+            // TODO: can we give more detail on the problem?
+            do_show_credentials_pane(CredentialsPane.Mode.NOT_GALLERY_URL);
+        }
+        else {
+            host.post_error(err);
+        }
     }
 
     private void on_album_create_error(
@@ -1182,9 +1212,23 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
             "failed; response = \'%s\'.",
             bad_txn.get_response());
 
-        // Maybe the saved credentials are bad, so have the user try
-        // again
-        do_show_credentials_pane(CredentialsPane.Mode.BAD_ACTION);
+        // HTTP error 403 is invalid authentication -- if we get this
+        // error during key fetch then we can just show the login screen
+        // again with a retry message; if we get any error other than
+        // 403 though, we can't recover from it, so just post the error
+        // to the user
+        if (bad_txn.get_status_code() == 403) {
+            // TODO: can we give more detail on the problem?
+            do_show_credentials_pane(CredentialsPane.Mode.FAILED_RETRY);
+        }
+        else if (bad_txn.get_status_code() == 400) {
+            // This might not be a Gallery URL
+            // TODO: can we give more detail on the problem?
+            do_show_credentials_pane(CredentialsPane.Mode.NOT_GALLERY_URL);
+        }
+        else {
+            host.post_error(err);
+        }
     }
 
     private void on_publish_error(
