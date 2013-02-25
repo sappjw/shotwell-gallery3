@@ -589,10 +589,11 @@ private class GalleryUploadTransaction :
         GLib.HashTable<string, string> disposition_table =
             new GLib.HashTable<string, string>(GLib.str_hash,
                                                GLib.str_equal);
-        string? filename = publishable.get_publishing_name();
-        if (filename == null || filename == "")
-            filename = publishable.get_param_string(
-                Spit.Publishing.Publishable.PARAM_STRING_BASENAME);
+        string? title = publishable.get_publishing_name();
+        string filename = publishable.get_param_string(
+            Spit.Publishing.Publishable.PARAM_STRING_BASENAME);
+        if (title == null || title == "")
+            title = filename;
 
         disposition_table.insert("filename", @"$(filename)");
         disposition_table.insert("name", "file");
@@ -609,7 +610,7 @@ private class GalleryUploadTransaction :
         Json.Object obj = new Json.Object();
         obj.set_string_member("name", filename);
         obj.set_string_member("type", type);
-        obj.set_string_member("title", publishable.get_publishing_name());
+        obj.set_string_member("title", title);
 
         root_node.set_object(obj);
         generator.set_root(root_node);
