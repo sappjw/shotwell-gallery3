@@ -817,7 +817,7 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
                     "'%s' at URL '%s' from saved credentials.",
                     username, url);
 
-                host.install_login_wait_pane();
+                host.install_account_fetch_wait_pane();
 
                 session.authenticate(url, username, key);
 
@@ -915,6 +915,8 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
     }
 
     private void do_fetch_album_urls() {
+
+        host.install_account_fetch_wait_pane();
 
         GetAlbumURLsTransaction album_trans =
             new GetAlbumURLsTransaction(session);
