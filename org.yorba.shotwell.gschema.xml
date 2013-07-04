@@ -510,6 +510,18 @@
         <summary>remove sensitive info from uploads</summary>
         <description>Indicates whether images being uploaded to Gallery3 should have their metadata removed first</description>
     </key>
+
+    <key name="scaling-constraint-id" type="i">
+        <default>0</default>
+        <summary>scaling constraint of uploaded picture</summary>
+        <description>The scaling constraint ID of the picture to be uploaded</description>
+    </key>
+
+    <key name="scaling-pixels" type="i">
+        <default>1024</default>
+        <summary>pixels of the major axis uploaded picture</summary>
+        <description>The pixels of the major axis of the picture to be uploaded; used only if scaling-constraint-id is an appropriate value</description>
+    </key>
 </schema>
 
 <schema id="org.yorba.shotwell.sharing.youtube" path="/org/yorba/shotwell/sharing/youtube/">
