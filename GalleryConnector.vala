@@ -869,6 +869,22 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
         host.set_config_bool("strip-metadata", strip_metadata);
     }
 
+    internal int? get_scaling_constraint_id() {
+        return host.get_config_int("scaling-constraint-id", 0);
+    }
+
+    internal void set_scaling_constraint_id(int constraint) {
+        host.set_config_int("scaling-constraint-id", constraint);
+    }
+
+    internal int? get_scaling_pixels() {
+        return host.get_config_int("scaling-pixels", 1024);
+    }
+
+    internal void set_scaling_pixels(int pixels) {
+        host.set_config_int("scaling-pixels", pixels);
+    }
+
     // Pane installation functions
     private void do_show_service_welcome_pane() {
         debug("ACTION: showing service welcome pane.");
@@ -975,7 +991,8 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
 
         publishing_options_pane =
             new PublishingOptionsPane(host, url, username, albums,
-                builder, get_persistent_strip_metadata());
+                builder, get_persistent_strip_metadata(),
+                get_scaling_constraint_id(), get_scaling_pixels());
         publishing_options_pane.publish.connect(
             on_publishing_options_pane_publish);
         publishing_options_pane.logout.connect(
@@ -1008,6 +1025,9 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
         debug("ACTION: publishing items");
 
         set_persistent_strip_metadata(parameters.strip_metadata);
+        set_scaling_constraint_id(
+            (parameters.photo_major_axis_size <= 0) ? 0 : 1);
+        set_scaling_pixels(parameters.photo_major_axis_size);
         host.set_service_locked(true);
         progress_reporter =
             host.serialize_publishables(parameters.photo_major_axis_size,
@@ -1409,6 +1429,8 @@ internal class PublishingOptionsPane : Spit.Publishing.DialogPane, GLib.Object {
     private Gtk.ComboBoxText existing_albums_combo = null;
     private Gtk.RadioButton create_new_radio = null;
     private Gtk.Entry new_album_entry = null;
+    private Gtk.ComboBoxText scaling_combo = null;
+    private Gtk.Entry pixels = null;
     private Gtk.CheckButton strip_metadata_check = null;
     private Gtk.Button publish_button = null;
     private Gtk.Button logout_button = null;
@@ -1422,7 +1444,8 @@ internal class PublishingOptionsPane : Spit.Publishing.DialogPane, GLib.Object {
 
     public PublishingOptionsPane(Spit.Publishing.PluginHost host,
             string url, string username, Album[] albums,
-            Gtk.Builder builder, bool strip_metadata) {
+            Gtk.Builder builder, bool strip_metadata,
+            int scaling_id, int scaling_pixels) {
         this.albums = albums;
         this.host = host;
 
@@ -1435,6 +1458,8 @@ internal class PublishingOptionsPane : Spit.Publishing.DialogPane, GLib.Object {
         title_label = builder.get_object("title_label") as Gtk.Label;
         use_existing_radio = builder.get_object("publish_to_existing_radio") as Gtk.RadioButton;
         existing_albums_combo = builder.get_object("existing_albums_combo") as Gtk.ComboBoxText;
+        scaling_combo = builder.get_object("scaling_constraint_combo") as Gtk.ComboBoxText;
+        pixels = builder.get_object("major_axis_pixels") as Gtk.Entry;
         create_new_radio = builder.get_object("publish_new_radio") as Gtk.RadioButton;
         new_album_entry = builder.get_object("new_album_name") as Gtk.Entry;
         strip_metadata_check = this.builder.get_object("strip_metadata_check") as Gtk.CheckButton;
@@ -1446,23 +1471,33 @@ internal class PublishingOptionsPane : Spit.Publishing.DialogPane, GLib.Object {
         title_label.set_label(
             _("Publishing to %s as %s.").printf(url, username));
         strip_metadata_check.set_active(strip_metadata);
+        scaling_combo.set_active(scaling_id);
+        pixels.set_text(@"$(scaling_pixels)");
 
         // connect all signals
         use_existing_radio.clicked.connect(on_use_existing_radio_clicked);
         create_new_radio.clicked.connect(on_create_new_radio_clicked);
         new_album_entry.changed.connect(on_new_album_entry_changed);
+        scaling_combo.changed.connect(on_scaling_constraint_changed);
+        pixels.changed.connect(on_pixels_changed);
         logout_button.clicked.connect(on_logout_clicked);
         publish_button.clicked.connect(on_publish_clicked);
     }
 
     private void on_publish_clicked() {
         string album_name;
+        int photo_major_axis_size =
+            (scaling_combo.get_active() == 1) ?
+                int.parse(pixels.get_text()) : -1;
+
         if (create_new_radio.get_active()) {
             album_name = new_album_entry.get_text();
             host.set_config_string(LAST_ALBUM_CONFIG_KEY, album_name);
             PublishingParameters param =
                 new PublishingParameters.to_new_album(album_name);
             debug("Trying to publish to \"%s\"", album_name);
+            param.photo_major_axis_size = photo_major_axis_size;
+
             publish(param,
                 strip_metadata_check.get_active());
         } else {
@@ -1471,7 +1506,11 @@ internal class PublishingOptionsPane : Spit.Publishing.DialogPane, GLib.Object {
             host.set_config_string(LAST_ALBUM_CONFIG_KEY, album_name);
             string album_path =
                 albums[existing_albums_combo.get_active()].path;
-            publish(new PublishingParameters.to_existing_album(album_path),
+            PublishingParameters param =
+                new PublishingParameters.to_existing_album(album_path);
+            param.photo_major_axis_size = photo_major_axis_size;
+
+            publish(param,
                 strip_metadata_check.get_active());
         }
     }
@@ -1502,6 +1541,25 @@ internal class PublishingOptionsPane : Spit.Publishing.DialogPane, GLib.Object {
 
     private void on_new_album_entry_changed() {
         update_publish_button_sensitivity();
+    }
+
+    private void update_pixel_entry_sensitivity() {
+        pixels.set_sensitive(scaling_combo.get_active() == 1);
+    }
+
+    private void on_scaling_constraint_changed() {
+        update_pixel_entry_sensitivity();
+    }
+
+    private void on_pixels_changed() {
+        string orig_text = pixels.get_text();
+        char last_char = orig_text[orig_text.length - 1];
+
+        if (orig_text.length > 0) {
+            if (!last_char.isdigit())
+                pixels.set_text(orig_text.substring(0,
+                    orig_text.length - 1));
+        }
     }
 
     public void installed() {
@@ -1535,6 +1593,7 @@ internal class PublishingOptionsPane : Spit.Publishing.DialogPane, GLib.Object {
             }
         }
         update_publish_button_sensitivity();
+        update_pixel_entry_sensitivity();
     }
 
     protected void notify_publish(PublishingParameters parameters) {
@@ -1577,7 +1636,7 @@ internal class PublishingParameters {
     public string album_name { get; private set; default = ""; }
     public string album_path { get; set; default = ""; }
     public string entity_title { get; private set; default = ""; }
-    public int photo_major_axis_size { get; private set; default = 0; }
+    public int photo_major_axis_size { get; set; default = -1; }
     public bool strip_metadata { get; set; default = false; }
 
     private PublishingParameters() {
