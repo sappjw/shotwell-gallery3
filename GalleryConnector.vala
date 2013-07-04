@@ -602,6 +602,8 @@ private class GalleryUploadTransaction :
 
         // Do the JSON stuff
         generator = new Json.Generator();
+        string desc = publishable.get_param_string(
+            Spit.Publishing.Publishable.PARAM_STRING_COMMENT);
         string type = (publishable.get_media_type() ==
             Spit.Publishing.Publisher.MediaType.VIDEO) ?
                 "movie" : "photo";
@@ -611,6 +613,7 @@ private class GalleryUploadTransaction :
         obj.set_string_member("name", filename);
         obj.set_string_member("type", type);
         obj.set_string_member("title", title);
+        obj.set_string_member("description", desc);
 
         root_node.set_object(obj);
         generator.set_root(root_node);
