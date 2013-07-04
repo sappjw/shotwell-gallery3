@@ -3,7 +3,7 @@ ICON := gallery3.png
 VERSION := 0.1
 VALA_VER := 0.18
 
-S_DIR := /usr/local/src/shotwell-0.14.0/
+S_DIR := /usr/local/src/shotwell-0.14.1/
 S_PLUGIN_DIR := $(S_DIR)/plugins/
 DEPS := $(S_PLUGIN_DIR)/common/RESTSupport.vala $(S_PLUGIN_DIR)/common/Resources.vala $(S_PLUGIN_DIR)/common/ui.vala
 
