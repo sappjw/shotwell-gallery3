@@ -594,6 +594,7 @@ private class GalleryUploadTransaction :
         string filename = publishable.get_param_string(
             Spit.Publishing.Publishable.PARAM_STRING_BASENAME);
         if (title == null || title == "")
+            //TODO: remove extension?
             title = filename;
 
         disposition_table.insert("filename", @"$(filename)");
@@ -1207,7 +1208,7 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
         if (!session.is_authenticated())
             return;
 
-        debug("EVENT: user has retrieved all album URLs.");
+        debug("EVENT: retrieving all album URLs.");
 
         string [] album_urls =
             (txn as GetAlbumURLsTransaction).get_album_urls();
@@ -1405,7 +1406,7 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
         do_show_service_welcome_pane();
     }
 
-    private void on_publishing_options_pane_publish(PublishingParameters parameters, bool strip_metadata) {
+    private void on_publishing_options_pane_publish(PublishingParameters parameters) {
         publishing_options_pane.publish.disconnect(
             on_publishing_options_pane_publish);
         publishing_options_pane.logout.disconnect(
@@ -1415,8 +1416,6 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
             return;
 
         debug("EVENT: user is attempting to publish something.");
-
-        parameters.strip_metadata = strip_metadata;
 
         if (parameters.is_to_new_album()) {
             debug("EVENT: must create new album \"%s\" first.",
@@ -1451,8 +1450,7 @@ internal class PublishingOptionsPane : Spit.Publishing.DialogPane, GLib.Object {
     private Album[] albums;
     private weak Spit.Publishing.PluginHost host;
 
-    public signal void publish(PublishingParameters parameters,
-        bool strip_metadata);
+    public signal void publish(PublishingParameters parameters);
     public signal void logout();
 
     public PublishingOptionsPane(Spit.Publishing.PluginHost host,
@@ -1502,30 +1500,28 @@ internal class PublishingOptionsPane : Spit.Publishing.DialogPane, GLib.Object {
         int photo_major_axis_size =
             (scaling_combo.get_active() == 1) ?
                 int.parse(pixels.get_text()) : -1;
+        PublishingParameters param;
 
         if (create_new_radio.get_active()) {
             album_name = new_album_entry.get_text();
             host.set_config_string(LAST_ALBUM_CONFIG_KEY, album_name);
-            PublishingParameters param =
+            param =
                 new PublishingParameters.to_new_album(album_name);
             debug("Trying to publish to \"%s\"", album_name);
-            param.photo_major_axis_size = photo_major_axis_size;
-
-            publish(param,
-                strip_metadata_check.get_active());
         } else {
             album_name =
                 albums[existing_albums_combo.get_active()].title;
             host.set_config_string(LAST_ALBUM_CONFIG_KEY, album_name);
             string album_path =
                 albums[existing_albums_combo.get_active()].path;
-            PublishingParameters param =
+            param =
                 new PublishingParameters.to_existing_album(album_path);
-            param.photo_major_axis_size = photo_major_axis_size;
-
-            publish(param,
-                strip_metadata_check.get_active());
         }
+
+        param.photo_major_axis_size = photo_major_axis_size;
+        param.strip_metadata = strip_metadata_check.get_active();
+
+        publish(param);
     }
 
     private void on_use_existing_radio_clicked() {
@@ -1610,7 +1606,7 @@ internal class PublishingOptionsPane : Spit.Publishing.DialogPane, GLib.Object {
     }
 
     protected void notify_publish(PublishingParameters parameters) {
-        publish(parameters, strip_metadata_check.get_active());
+        publish(parameters);
     }
 
     protected void notify_logout() {
