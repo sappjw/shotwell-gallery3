@@ -713,47 +713,51 @@ private class GalleryUploadTransaction :
     private void on_upload_completed()
             throws Spit.Publishing.PublishingError {
 
-        string[] keywords;
+        debug("EVENT: upload completed");
 
-        debug("EVENT: upload completed, evaluating tags");
+        if (!parameters.strip_metadata) {
 
-        keywords = base.publishable.get_publishing_keywords();
+            string[] keywords;
 
-        // If this publishable has no tags, continue
-        if (null == keywords) {
-            debug("No tags");
-            return;
-        }
+            debug("EVENT: evaluating tags");
 
-        // Get URLs from the file we just finished uploading
-        item_url = get_new_item_url();
-        item_path = strip_session_url(item_url);
-        item_tags_path = get_new_item_tags_path();
-        debug("new item path is %s", item_path);
-        debug("item_tags path is %s", item_tags_path);
+            keywords = base.publishable.get_publishing_keywords();
 
-        // Verify these aren't empty
-        if (("" == item_path) || ("" == item_tags_path)) {
-            throw new
-                Spit.Publishing.PublishingError.COMMUNICATION_FAILED(
-                    "Could not obtain URL of uploaded item or its " +
-                    "\"item_tags\" relationship URL");
-        }
-
-        // Do the tagging here
-        foreach (string tag in keywords) {
-            debug(@"Found tag: $(tag)");
-            string new_tag_url = get_tag_url(tag);
-
-            // Next, get the item_tags URL from the newly-created
-            // item and write to it.
-            try {
-                do_set_tag_relationship(new_tag_url);
-            } catch (Spit.Publishing.PublishingError err) {
-                debug("Problem setting the relationship between tag " +
-                    "and item: %s", err.message);
-                throw err;
+            // If this publishable has no tags, continue
+            if (null == keywords) {
+                debug("No tags");
+                return;
             }
+
+            // Get URLs from the file we just finished uploading
+            item_url = get_new_item_url();
+            item_path = strip_session_url(item_url);
+            item_tags_path = get_new_item_tags_path();
+            debug("new item path is %s", item_path);
+            debug("item_tags path is %s", item_tags_path);
+
+            // Verify these aren't empty
+            if (("" == item_path) || ("" == item_tags_path)) {
+                throw new
+                    Spit.Publishing.PublishingError.COMMUNICATION_FAILED(
+                        "Could not obtain URL of uploaded item or its " +
+                        "\"item_tags\" relationship URL");
+            }
+
+            // Do the tagging here
+            foreach (string tag in keywords) {
+                debug(@"Found tag: $(tag)");
+                string new_tag_url = get_tag_url(tag);
+
+                try {
+                    do_set_tag_relationship(new_tag_url);
+                } catch (Spit.Publishing.PublishingError err) {
+                    debug("Problem setting the relationship between tag " +
+                        "and item: %s", err.message);
+                    throw err;
+                }
+            }
+
         }
 
     }
