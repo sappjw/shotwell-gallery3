@@ -296,7 +296,8 @@ private class GetAlbumURLsTransaction : GalleryRequestTransaction {
             root_node = get_root_node();
         }
         catch (Spit.Publishing.PublishingError e) {
-            error("Could not get root node");
+            warning("Could not get root node");
+            return null;
         }
 
         all_members =
@@ -304,7 +305,7 @@ private class GetAlbumURLsTransaction : GalleryRequestTransaction {
 
         string [] member_urls = null;
 
-        for (int i = 0; i <= all_members.get_length() - 1; i++)
+        for (uint i = 0; i < all_members.get_length(); i++)
             member_urls += all_members.get_string_element(i);
 
         return member_urls;
@@ -1211,7 +1212,16 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
         string [] album_urls =
             (txn as GetAlbumURLsTransaction).get_album_urls();
 
-        do_fetch_albums(album_urls);
+        if (null == album_urls) {
+
+            string url = session.url;
+            string username = session.username;
+
+            do_show_publishing_options_pane(url, username);
+
+        }
+        else
+            do_fetch_albums(album_urls);
     }
 
     private void on_album_fetch_error(
