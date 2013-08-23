@@ -1916,6 +1916,27 @@ internal class Session : Publishing.RESTSupport.Session {
 internal class Uploader : Publishing.RESTSupport.BatchUploader {
 
     private PublishingParameters parameters;
+    private string _current_publishable_name;
+    private Spit.Publishing.Publisher.MediaType _current_media_type;
+    private Publishing.RESTSupport.Transaction? _current_transaction;
+
+    /* Properties */
+    public string current_publishable_name {
+        get {
+            return _current_publishable_name;
+        }
+    }
+    public uint status_code {
+        get {
+            return _current_transaction.get_status_code();
+        }
+    }
+    public Spit.Publishing.Publisher.MediaType
+            current_publishable_type {
+        get {
+            return _current_media_type;
+        }
+    }
 
     public Uploader(Session session,
             Spit.Publishing.Publishable[] publishables,
@@ -1930,8 +1951,15 @@ internal class Uploader : Publishing.RESTSupport.BatchUploader {
     protected override Publishing.RESTSupport.Transaction
             create_transaction(Spit.Publishing.Publishable publishable) {
 
-        return new GalleryUploadTransaction((Session) get_session(),
-            parameters, get_current_publishable());
+        Spit.Publishing.Publishable p = get_current_publishable();
+        _current_publishable_name =
+            p.get_param_string(Spit.Publishing.Publishable.PARAM_STRING_BASENAME);
+        _current_media_type = p.get_media_type();
+
+        _current_transaction =
+            new GalleryUploadTransaction((Session) get_session(),
+                parameters, p);
+        return _current_transaction;
 
     }
 
