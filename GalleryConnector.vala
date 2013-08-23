@@ -90,7 +90,7 @@ public class Gallery3Service : Object, Spit.Pluggable,
         return "Gallery3";
     }
 
-    public void get_info(out Spit.PluggableInfo info) {
+    public void get_info(ref Spit.PluggableInfo info) {
         info.authors = "Joe Sapp";
         info.copyright = "2012-2013 Joe Sapp";
         info.translators = Resources.TRANSLATORS;
