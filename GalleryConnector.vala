@@ -1157,7 +1157,7 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
             string username = get_gallery_username();
 
             debug("EVENT: network transaction to fetch key completed " +
-                  "successfully (%s).", key);
+                  "successfully.");
 
             set_api_key(key);
             session.authenticate(url, username, key);
@@ -1686,14 +1686,6 @@ internal class PublishingParameters {
     public bool is_to_new_album() {
         return (album_name != "");
     }
-
-    // converts a publish-to-new-album parameters object into a publish-to-existing-album
-    // parameters object
-    public void convert() {
-        assert(is_to_new_album());
-
-        album_name = "";
-    }
 }
 
 internal class CredentialsPane : Spit.Publishing.DialogPane, GLib.Object {
@@ -1788,9 +1780,10 @@ internal class CredentialsGrid : GLib.Object {
     private const string FAILED_RETRY_MESSAGE = _("The username and password or API key were incorrect. To try again, re-enter your username and password below.");
     private const string NOT_GALLERY_URL_MESSAGE = _("The URL entered does not appear to be the main directory of a Gallery3 instance. Please make sure you typed it correctly and it does not have any trailing components (e.g., index.php).");
 
+    public Gtk.Grid pane_widget { get; private set; default = null; }
+
     private weak Spit.Publishing.PluginHost host = null;
     private Gtk.Builder builder = null;
-    public Gtk.Grid pane_widget { get; private set; default = null; }
     private Gtk.Label intro_message_label = null;
     private Gtk.Entry url_entry = null;
     private Gtk.Entry username_entry = null;
