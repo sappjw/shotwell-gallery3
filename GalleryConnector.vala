@@ -774,8 +774,8 @@ private class GalleryUploadTransaction :
 
 
 public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
-    private const string BAD_FILE_MSG = "The file \"%s\" may not be supported by or may be too large for this instance of Gallery3.";
-    private const string BAD_MOVIE_MSG = "Note that Gallery3 only supports the video types that Flowplayer does.";
+    private const string BAD_FILE_MSG = _("\n\nThe file \"%s\" may not be supported by or may be too large for this instance of Gallery3.");
+    private const string BAD_MOVIE_MSG = _("\nNote that Gallery3 only supports the video types that Flowplayer does.");
 
     private weak Spit.Publishing.PluginHost host = null;
     private Spit.Publishing.ProgressCallback progress_reporter = null;
@@ -1367,13 +1367,13 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
 
         // Is this a 400 error? Then it may be a bad file.
         if (uploader.status_code == 400) {
-            g3_err.message += "\n\n" +
+            g3_err.message +=
                 BAD_FILE_MSG.printf(uploader.current_publishable_name);
             // Add an additional message if this appears to be a video
             // file.
             if (uploader.current_publishable_type ==
                     Spit.Publishing.Publisher.MediaType.VIDEO)
-                g3_err.message += "\n" + BAD_MOVIE_MSG;
+                g3_err.message += BAD_MOVIE_MSG;
         }
         host.post_error(g3_err);
     }
