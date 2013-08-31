@@ -511,12 +511,6 @@
         <description>Indicates whether images being uploaded to Gallery3 should have their metadata removed first</description>
     </key>
 
-    <key name="video-check" type="b">
-        <default>false</default>
-        <summary>disable the check for unsupported videos</summary>
-        <description>Disables the test and removal for videos which may be unsupported by the Gallery3 installation</description>
-    </key>
-
     <key name="scaling-constraint-id" type="i">
         <default>0</default>
         <summary>scaling constraint of uploaded picture</summary>

@@ -881,14 +881,6 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
         host.set_config_bool("strip-metadata", strip_metadata);
     }
 
-    internal bool? get_persistent_video_check() {
-        return host.get_config_bool("video-check", false);
-    }
-
-    internal void set_persistent_video_check(bool video_check) {
-        host.set_config_bool("video-check", video_check);
-    }
-
     internal int? get_scaling_constraint_id() {
         return host.get_config_int("scaling-constraint-id", 0);
     }
@@ -1012,7 +1004,6 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
         publishing_options_pane =
             new PublishingOptionsPane(host, url, username, albums,
                 builder, get_persistent_strip_metadata(),
-                get_persistent_video_check(),
                 get_scaling_constraint_id(), get_scaling_pixels());
         publishing_options_pane.publish.connect(
             on_publishing_options_pane_publish);
@@ -1062,24 +1053,12 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
         if (!is_running())
             return;
 
-        Uploader? uploader =
+        Uploader uploader =
             new Uploader(session, host.get_publishables(),
                 parameters);
-
-        if (null != uploader) {
-
-            uploader.upload_complete.connect(on_publish_complete);
-            uploader.upload_error.connect(on_publish_error);
-            uploader.upload(on_upload_status_updated);
-
-        }
-        else {
-
-            // TODO: Put useful error message in here about how no valid
-            // files to upload were found
-            error("uploader == null");
-
-        }
+        uploader.upload_complete.connect(on_publish_complete);
+        uploader.upload_error.connect(on_publish_error);
+        uploader.upload(on_upload_status_updated);
 
     }
 
@@ -1487,7 +1466,6 @@ internal class PublishingOptionsPane : Spit.Publishing.DialogPane, GLib.Object {
     private Gtk.ComboBoxText scaling_combo = null;
     private Gtk.Entry pixels = null;
     private Gtk.CheckButton strip_metadata_check = null;
-    private Gtk.CheckButton disable_video_check_check = null;
     private Gtk.Button publish_button = null;
     private Gtk.Button logout_button = null;
 
@@ -1500,7 +1478,6 @@ internal class PublishingOptionsPane : Spit.Publishing.DialogPane, GLib.Object {
     public PublishingOptionsPane(Spit.Publishing.PluginHost host,
             string url, string username, Album[] albums,
             Gtk.Builder builder, bool strip_metadata,
-            bool disable_video_check,
             int scaling_id, int scaling_pixels) {
         this.albums = albums;
         this.host = host;
@@ -1519,7 +1496,6 @@ internal class PublishingOptionsPane : Spit.Publishing.DialogPane, GLib.Object {
         create_new_radio = builder.get_object("publish_new_radio") as Gtk.RadioButton;
         new_album_entry = builder.get_object("new_album_name") as Gtk.Entry;
         strip_metadata_check = this.builder.get_object("strip_metadata_check") as Gtk.CheckButton;
-        disable_video_check_check = this.builder.get_object("disable_video_check") as Gtk.CheckButton;
         publish_button = builder.get_object("publish_button") as Gtk.Button;
         logout_button = builder.get_object("logout_button") as Gtk.Button;
 
@@ -1528,7 +1504,6 @@ internal class PublishingOptionsPane : Spit.Publishing.DialogPane, GLib.Object {
         title_label.set_label(
             _("Publishing to %s as %s.").printf(url, username));
         strip_metadata_check.set_active(strip_metadata);
-        disable_video_check_check.set_active(disable_video_check);
         scaling_combo.set_active(scaling_id);
         pixels.set_text(@"$(scaling_pixels)");
 
@@ -1567,8 +1542,6 @@ internal class PublishingOptionsPane : Spit.Publishing.DialogPane, GLib.Object {
 
         param.photo_major_axis_size = photo_major_axis_size;
         param.strip_metadata = strip_metadata_check.get_active();
-        param.disable_video_check =
-            disable_video_check_check.get_active();
 
         publish(param);
     }
@@ -1696,7 +1669,6 @@ internal class PublishingParameters {
     public string entity_title { get; private set; default = ""; }
     public int photo_major_axis_size { get; set; default = -1; }
     public bool strip_metadata { get; set; default = false; }
-    public bool disable_video_check { get; set; default = false; }
 
     private PublishingParameters() {
     }
@@ -1981,63 +1953,9 @@ internal class Uploader : Publishing.RESTSupport.BatchUploader {
             Spit.Publishing.Publishable[] publishables,
             PublishingParameters parameters) {
 
-        Spit.Publishing.Publishable[] final_publishables = {};
+        base(session, publishables);
 
-        if (!parameters.disable_video_check) {
-
-            // Check for the right extension on videos.
-            // As of version 3.0.9, Gallery officially only supports flv
-            // and mp4 (H.264 video and AAC or mp3 audio) due to
-            // the limitations of Flowplayer.
-            //
-            // Until feature #4173
-            // (http://redmine.yorba.org/issues/4173) is implemented, we
-            // can only try to filter out some file formats.  In the
-            // future, we could also try to transcode before
-            // uploading if Shotwell gets the capability to do so.
-            foreach (Spit.Publishing.Publishable p in publishables) {
-
-                if (p.get_media_type() ==
-                        Spit.Publishing.Publisher.MediaType.VIDEO) {
-
-                    string filename = p.get_param_string(
-                        Spit.Publishing.Publishable.PARAM_STRING_BASENAME);
-                    debug(@"Testing video type of $(filename)");
-
-                    int ext_loc = filename.last_index_of(".") + 1;
-                    string extension = filename.substring(ext_loc).up();
-                    if (!((extension == "FLV") ||
-                          (extension == "MP4") ||
-                          (extension == "MOV") ||
-                          (extension == "M4V") ||
-                          (extension == "F4V"))) {
-                        warning("Video type is probably not " +
-                            "supported by Gallery3 for file \"%s\"; " +
-                            "skipping it.",
-                            filename);
-                    }
-                    else
-                        final_publishables += p;
-
-                }
-                // There are no invalid types of pictures, AFAIK.
-                else
-                    final_publishables += p;
-
-            }
-
-        }
-        else
-            final_publishables = publishables;
-
-        if (final_publishables.length > 0) {
-
-            debug(@"Final length of publishables: $(final_publishables.length)");
-            base(session, final_publishables);
-
-            this.parameters = parameters;
-
-        }
+        this.parameters = parameters;
 
     }
 
