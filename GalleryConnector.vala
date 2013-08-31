@@ -24,6 +24,8 @@ Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 02110-1301 USA
 """;
 
+static const string WEBSITE_URL =
+    "https://github.com/sappjw/shotwell-gallery3";
 
 // This module's Spit.Module
 private class ShotwellPublishingGallery3 : Object, Spit.Module {
@@ -95,8 +97,7 @@ public class Gallery3Service : Object, Spit.Pluggable,
         info.copyright = "2012-2013 Joe Sapp";
         info.translators = Resources.TRANSLATORS;
         info.version = _VERSION;
-        //info.website_name = WEBSITE_NAME;
-        //info.website_url = WEBSITE_URL;
+        info.website_url = WEBSITE_URL;
         info.is_license_wordwrapped = false;
         info.license = LICENSE;
         info.icons = icon_pixbuf_set;
