@@ -90,7 +90,7 @@ public class Gallery3Service : Object, Spit.Pluggable,
         return "Gallery3";
     }
 
-    public void get_info(out Spit.PluggableInfo info) {
+    public void get_info(ref Spit.PluggableInfo info) {
         info.authors = "Joe Sapp";
         info.copyright = "2012-2013 Joe Sapp";
         info.translators = Resources.TRANSLATORS;
@@ -774,6 +774,9 @@ private class GalleryUploadTransaction :
 
 
 public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
+    private const string BAD_FILE_MSG = _("\n\nThe file \"%s\" may not be supported by or may be too large for this instance of Gallery3.");
+    private const string BAD_MOVIE_MSG = _("\nNote that Gallery3 only supports the video types that Flowplayer does.");
+
     private weak Spit.Publishing.PluginHost host = null;
     private Spit.Publishing.ProgressCallback progress_reporter = null;
     private weak Spit.Publishing.Service service = null;
@@ -1175,7 +1178,7 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
             string username = get_gallery_username();
 
             debug("EVENT: network transaction to fetch key completed " +
-                  "successfully (%s).", key);
+                  "successfully.");
 
             set_api_key(key);
             session.authenticate(url, username, key);
@@ -1368,17 +1371,32 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
     }
 
     private void on_publish_error(
-            Publishing.RESTSupport.BatchUploader uploader,
+            Publishing.RESTSupport.BatchUploader _uploader,
             Spit.Publishing.PublishingError err) {
         if (!is_running())
             return;
 
-        debug("EVENT: uploader reports upload error = '%s'.", err.message);
+        Uploader uploader = _uploader as Uploader;
+        GLib.Error g3_err = err.copy();
+
+        debug("EVENT: uploader reports upload error = '%s' " +
+            "for file '%s' (code %d)", err.message,
+                uploader.current_publishable_name, uploader.status_code);
 
         uploader.upload_complete.disconnect(on_publish_complete);
         uploader.upload_error.disconnect(on_publish_error);
 
-        host.post_error(err);
+        // Is this a 400 error? Then it may be a bad file.
+        if (uploader.status_code == 400) {
+            g3_err.message +=
+                BAD_FILE_MSG.printf(uploader.current_publishable_name);
+            // Add an additional message if this appears to be a video
+            // file.
+            if (uploader.current_publishable_type ==
+                    Spit.Publishing.Publisher.MediaType.VIDEO)
+                g3_err.message += BAD_MOVIE_MSG;
+        }
+        host.post_error(g3_err);
     }
 
     private void on_upload_status_updated(int file_number,
@@ -1696,14 +1714,6 @@ internal class PublishingParameters {
     public bool is_to_new_album() {
         return (album_name != "");
     }
-
-    // converts a publish-to-new-album parameters object into a publish-to-existing-album
-    // parameters object
-    public void convert() {
-        assert(is_to_new_album());
-
-        album_name = "";
-    }
 }
 
 internal class CredentialsPane : Spit.Publishing.DialogPane, GLib.Object {
@@ -1798,9 +1808,10 @@ internal class CredentialsGrid : GLib.Object {
     private const string FAILED_RETRY_MESSAGE = _("The username and password or API key were incorrect. To try again, re-enter your username and password below.");
     private const string NOT_GALLERY_URL_MESSAGE = _("The URL entered does not appear to be the main directory of a Gallery3 instance. Please make sure you typed it correctly and it does not have any trailing components (e.g., index.php).");
 
+    public Gtk.Grid pane_widget { get; private set; default = null; }
+
     private weak Spit.Publishing.PluginHost host = null;
     private Gtk.Builder builder = null;
-    public Gtk.Grid pane_widget { get; private set; default = null; }
     private Gtk.Label intro_message_label = null;
     private Gtk.Entry url_entry = null;
     private Gtk.Entry username_entry = null;
@@ -1944,6 +1955,27 @@ internal class Session : Publishing.RESTSupport.Session {
 internal class Uploader : Publishing.RESTSupport.BatchUploader {
 
     private PublishingParameters parameters;
+    private string _current_publishable_name;
+    private Spit.Publishing.Publisher.MediaType _current_media_type;
+    private Publishing.RESTSupport.Transaction? _current_transaction;
+
+    /* Properties */
+    public string current_publishable_name {
+        get {
+            return _current_publishable_name;
+        }
+    }
+    public uint status_code {
+        get {
+            return _current_transaction.get_status_code();
+        }
+    }
+    public Spit.Publishing.Publisher.MediaType
+            current_publishable_type {
+        get {
+            return _current_media_type;
+        }
+    }
 
     public Uploader(Session session,
             Spit.Publishing.Publishable[] publishables,
@@ -2012,8 +2044,15 @@ internal class Uploader : Publishing.RESTSupport.BatchUploader {
     protected override Publishing.RESTSupport.Transaction
             create_transaction(Spit.Publishing.Publishable publishable) {
 
-        return new GalleryUploadTransaction((Session) get_session(),
-            parameters, get_current_publishable());
+        Spit.Publishing.Publishable p = get_current_publishable();
+        _current_publishable_name =
+            p.get_param_string(Spit.Publishing.Publishable.PARAM_STRING_BASENAME);
+        _current_media_type = p.get_media_type();
+
+        _current_transaction =
+            new GalleryUploadTransaction((Session) get_session(),
+                parameters, p);
+        return _current_transaction;
 
     }
 

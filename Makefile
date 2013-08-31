@@ -1,7 +1,7 @@
 PROGRAM := GalleryConnector
 ICON := gallery3.png
 VERSION := 0.1
-VALA_VER := 0.18
+VALA_VER := 0.20
 
 S_DIR := /usr/local/src/shotwell-0.14.1/
 S_PLUGIN_DIR := $(S_DIR)/plugins/
@@ -10,7 +10,7 @@ DEPS := $(S_PLUGIN_DIR)/common/RESTSupport.vala $(S_PLUGIN_DIR)/common/Resources
 all: $(PROGRAM).so
 
 clean:
-	rm -f $(PROGRAM).c $(PROGRAM).so
+	rm -f $(PROGRAM).c $(PROGRAM).so Resources.c RESTSupport.c ui.c $(PROGRAM).c
 
 install: $(PROGRAM).so
 	@ [ `whoami` != "root" ] || ( echo 'Run make install as yourself, not as root.' ; exit 1 )
