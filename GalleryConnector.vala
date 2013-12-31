@@ -297,8 +297,7 @@ private class GetAlbumURLsTransaction : GalleryRequestTransaction {
             root_node = get_root_node();
         }
         catch (Spit.Publishing.PublishingError e) {
-            warning("Could not get root node");
-            return null;
+            error("Could not get root node");
         }
 
         all_members =
@@ -357,7 +356,9 @@ private class GetAlbumsTransaction : GalleryRequestTransaction {
 
 }
 
-// Class to create or get a tag URL
+// Class to create or get a tag URL.
+// Tag URLs are placed in the "item_tags" object and relate an item and
+// its tags.
 private class GalleryGetTagTransaction : BaseGalleryTransaction {
 
     public GalleryGetTagTransaction(Session session, string tag_name) {
@@ -411,6 +412,7 @@ private class GalleryGetTagTransaction : BaseGalleryTransaction {
 
 }
 
+// Get the item_tags URL for a given item
 private class GalleryGetItemTagsURLsTransaction :
         GalleryRequestTransaction {
 
@@ -444,7 +446,6 @@ private class GalleryGetItemTagsURLsTransaction :
             item_tags_path = tags.get_string_member("url");
 
             // Remove the session URL from the beginning of this URL
-            Session session = get_parent_session() as Session;
             item_tags_path = strip_session_url(item_tags_path);
 
         }
@@ -455,10 +456,10 @@ private class GalleryGetItemTagsURLsTransaction :
 
 }
 
+// Set a tag relationship with an item
 private class GallerySetTagRelationshipTransaction :
         BaseGalleryTransaction {
 
-    // Properties
     public GallerySetTagRelationshipTransaction(Session session,
             string item_tags_path, string tag_url, string item_url) {
 
@@ -1283,7 +1284,11 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
 
         debug("EVENT: user is attempting to populate the album list.");
 
-        albums = (txn as GetAlbumsTransaction).get_albums();
+        try {
+            albums = (txn as GetAlbumsTransaction).get_albums();
+        } catch (Spit.Publishing.PublishingError err) {
+            on_album_fetch_error(txn, err);
+        }
 
         string url = session.url;
         string username = session.username;
@@ -1626,14 +1631,6 @@ internal class PublishingOptionsPane : Spit.Publishing.DialogPane, GLib.Object {
         }
         update_publish_button_sensitivity();
         update_pixel_entry_sensitivity();
-    }
-
-    protected void notify_publish(PublishingParameters parameters) {
-        publish(parameters);
-    }
-
-    protected void notify_logout() {
-        logout();
     }
 
     public Gtk.Widget get_widget() {
