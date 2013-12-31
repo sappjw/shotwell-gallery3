@@ -306,7 +306,7 @@ private class GetAlbumURLsTransaction : GalleryRequestTransaction {
 
         string [] member_urls = null;
 
-        for (uint i = 0; i < all_members.get_length(); i++)
+        for (uint i = 0; i <= all_members.get_length() - 1; i++)
             member_urls += all_members.get_string_element(i);
 
         return member_urls;
@@ -1598,7 +1598,7 @@ internal class PublishingOptionsPane : Spit.Publishing.DialogPane, GLib.Object {
         int default_album_id = -1;
         string last_album =
             host.get_config_string(LAST_ALBUM_CONFIG_KEY, "");
-        for (int i = 0; i < albums.length; i++) {
+        for (int i = 0; i <= albums.length - 1; i++) {
             existing_albums_combo.append_text(albums[i].title);
             if ((albums[i].title == last_album) ||
                 ((DEFAULT_ALBUM_NAME == albums[i].title) &&
