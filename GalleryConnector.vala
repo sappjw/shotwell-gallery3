@@ -311,18 +311,55 @@ private class GetAlbumURLsTransaction : GalleryRequestTransaction {
 
 private class GetAlbumsTransaction : GalleryRequestTransaction {
 
-    //TODO: handle > 100 items
-    public GetAlbumsTransaction(Session session, string [] album_urls) {
+    // Properties
+    // Original list of album URLs
+    public string [] album_urls { get; private set; default = null; }
+    // How many URLs have been sent?
+    public uint urls_sent { get; private set; default = 0; }
+    // Are there (possibly) more URLs to send?
+    public bool more_urls { get; private set; default = false; }
 
-        string url_list = "";
+    public GetAlbumsTransaction(Session session, string [] _album_urls,
+                                uint start = 0) {
 
         base(session, "/items");
         add_argument("scope", "all");
 
-        // Wrap each URL in double quotes and separate by a comma
-        for (uint i = 0; i <= album_urls.length - 1; i++)
-            album_urls[i] = "\"" + album_urls[i] + "\"";
-        url_list = "[" + string.joinv(",", album_urls) + "]";
+        // Save original list of URLs
+        album_urls = _album_urls;
+
+        // Wrap each URL in double quotes and separate by a comma, but
+        // we should try to keep the length of the URL under 255
+        // characters.  We need to do this to avoid problems with URLs
+        // that are too long on some web servers (and, really, if there
+        // are alot of albums, this can get large quickly).
+        // The Gallery3 API should probably allow this in a POST
+        // transaction...
+        string url_list = "[";
+        string [] my_album_urls = null;
+        string? endpoint_url = session.get_endpoint_url();
+        int url_length = (null != endpoint_url) ?
+            endpoint_url.length : 0;
+        url_length += 18; // for: ?scope=all&urls=[]
+
+        // We have to allow at least one URL at a time
+        if (start <= album_urls.length - 1) {
+
+            urls_sent = start;
+            do {
+                my_album_urls += "\"" + album_urls[urls_sent] + "\"";
+                // Add 3 for: "",
+                url_length += album_urls[urls_sent].length + 3;
+                urls_sent++;
+            } while ((urls_sent <= album_urls.length - 1) &&
+                     (url_length +
+                      album_urls[urls_sent].length + 3 <= 255));
+            url_list += string.joinv(",", my_album_urls);
+
+            more_urls = (urls_sent <= (album_urls.length - 1));
+
+        }
+        url_list += "]";
 
         add_argument("urls", url_list);
 
@@ -959,10 +996,10 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
 
     }
 
-    private void do_fetch_albums(string [] album_urls) {
+    private void do_fetch_albums(string [] album_urls, uint start = 0) {
 
         GetAlbumsTransaction album_trans =
-            new GetAlbumsTransaction(session, album_urls);
+            new GetAlbumsTransaction(session, album_urls, start);
         album_trans.network_error.connect(on_album_fetch_error);
         album_trans.completed.connect(on_album_fetch_complete);
 
@@ -1270,6 +1307,8 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
         txn.completed.disconnect(on_album_fetch_complete);
         txn.network_error.disconnect(on_album_fetch_error);
 
+        Album[] new_albums = null;
+
         if (!is_running())
             return;
 
@@ -1280,15 +1319,30 @@ public class GalleryPublisher : Spit.Publishing.Publisher, GLib.Object {
         debug("EVENT: user is attempting to populate the album list.");
 
         try {
-            albums = (txn as GetAlbumsTransaction).get_albums();
+            new_albums =
+                (txn as GetAlbumsTransaction).get_albums();
         } catch (Spit.Publishing.PublishingError err) {
             on_album_fetch_error(txn, err);
         }
 
-        string url = session.url;
-        string username = session.username;
+        // Append new albums to existing
+        for (int i = 0; i <= new_albums.length - 1; i++)
+            albums += new_albums[i];
 
-        do_show_publishing_options_pane(url, username);
+        if ((txn as GetAlbumsTransaction).more_urls) {
+
+            do_fetch_albums((txn as GetAlbumsTransaction).album_urls,
+                (txn as GetAlbumsTransaction).urls_sent);
+
+        }
+        else {
+
+            string url = session.url;
+            string username = session.username;
+
+            do_show_publishing_options_pane(url, username);
+
+        }
     }
 
     private void on_album_create_error(
