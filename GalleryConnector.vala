@@ -275,16 +275,11 @@ private class GalleryRequestTransaction : BaseGalleryTransaction {
 
 private class GetAlbumURLsTransaction : GalleryRequestTransaction {
 
-    private string? session_url;
-
-    //TODO: handle > 100 items
     public GetAlbumURLsTransaction(Session session) {
 
         base(session, "/item/1");
         add_argument("type", "album");
         add_argument("scope", "all");
-
-        session_url = session.url;
 
     }
 
